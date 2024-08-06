@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -49,16 +49,17 @@ app.add_middleware(CustomCORSMiddleware)
 scheduler = BackgroundScheduler()
 scheduler.start()
 
+router = APIRouter()
+
+# Move the root route here to ensure it is registered
+@router.get("/")
+def read_root():
+    return "Success! Go to /docs for Swagger API"
 
 app.include_router(router)
-
 app.include_router(user_router, prefix="/api/user", tags=["User"])
 app.include_router(statistics_router, prefix="/api/statistics", tags=["Statistics"])
 app.include_router(contacts_router, prefix="/api/contacts", tags=["Contacts"])
-
-@app.get("/")
-def read_root():
-    return {"message": "Success! Go to /docs for Swagger API"}
 
 def delete_expired_codes_and_users():
     db: Session = SessionLocal()
