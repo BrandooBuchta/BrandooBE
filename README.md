@@ -1,2 +1,2 @@
-# BrandooBE
-Brandoo backend
+# How to start a server:
+uvicorn main:app --reload 
