@@ -15,7 +15,6 @@ from routers.user import router as user_router
 from routers.statistics import router as statistics_router
 from routers.contacts import router as contacts_router
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
