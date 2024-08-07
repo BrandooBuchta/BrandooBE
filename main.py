@@ -18,7 +18,7 @@ from routers.contacts import router as contacts_router
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-print("test")
+print("testoicek")
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(
