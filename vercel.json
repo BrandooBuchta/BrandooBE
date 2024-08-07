@@ -10,5 +10,6 @@
             "src": "/(.*)",
             "dest": "BrandooBE/main.py"
         }
-    ]
+    ],
+    "rewrites": [{ "source": "/(.*)", "destination": "BrandooBE/main.py" }]
 }
