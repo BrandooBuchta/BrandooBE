@@ -13,6 +13,8 @@ from routers.user import router as user_router
 from routers.statistics import router as statistics_router
 from routers.contacts import router as contacts_router
 
+print("test")
+
 Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="Statistify API"
