@@ -1,9 +1,11 @@
+import logging
 from fastapi import FastAPI, Request, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timezone, timedelta
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 import uvicorn
 
 from database import SessionLocal, engine, Base
@@ -12,6 +14,10 @@ from models.user import User, Code
 from routers.user import router as user_router
 from routers.statistics import router as statistics_router
 from routers.contacts import router as contacts_router
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 print("test")
 
@@ -47,6 +53,26 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(CustomCORSMiddleware)
+
+# Middleware to log requests and responses
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Request: {request.method} {request.url}")
+    try:
+        response = await call_next(request)
+        logger.info(f"Response: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"Error processing request: {e}")
+        raise
+
+@app.exception_handler(Exception)
+async def exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"message": "Internal Server Error"},
+    )
 
 scheduler = BackgroundScheduler()
 scheduler.start()
