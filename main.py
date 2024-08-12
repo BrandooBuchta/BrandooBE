@@ -1,13 +1,13 @@
+# main.py
 import logging
+import asyncio  # Add asyncio for scheduling tasks
 from fastapi import FastAPI, Request, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timezone, timedelta
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import uvicorn
-from pytz import timezone as pytz_timezone
 
 from database import SessionLocal, engine, Base
 from models.user import User, Code
@@ -35,44 +35,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-def delete_expired_codes_and_users():
-    db: Session = SessionLocal()
-    try:
-        # Define the time zone of the stored timestamps (in your case +02:00)
-        stored_timezone = pytz_timezone('Europe/Prague')
-        
-        # Get the current UTC time
-        now_utc = datetime.now(tz=timezone.utc)
-
-        # Convert current UTC time to the stored time zone
-        now_in_stored_tz = now_utc.astimezone(stored_timezone)
-        
-        logger.info(f"Current time in stored timezone: {now_in_stored_tz.isoformat()}")
-        
-        # Find expired codes (older than 5 minutes in the stored time zone)
-        expired_codes = db.query(Code).filter(Code.created_at < (now_in_stored_tz - timedelta(minutes=5))).all()
-        logger.info(f"Found {len(expired_codes)} expired codes")
-        for code in expired_codes:
-            logger.info(f"Deleting code created at {code.created_at}")
-            db.delete(code)
-
-        # Find unverified users older than 7 days in the stored time zone
-        old_unverified_users = db.query(User).filter(
-            User.is_verified == False, 
-            User.created_at < (now_in_stored_tz - timedelta(days=7))
-        ).all()
-        logger.info(f"Found {len(old_unverified_users)} old unverified users")
-        for user in old_unverified_users:
-            logger.info(f"Deleting user created at {user.created_at}")
-            db.delete(user)
-
-        db.commit()
-    except Exception as e:
-        logger.error(f"Error during cleanup: {e}")
-        db.rollback()
-    finally:
-        db.close()
 
 # Custom middleware for CORS exceptions
 class CustomCORSMiddleware(BaseHTTPMiddleware):
@@ -106,15 +68,8 @@ async def exception_handler(request: Request, exc: Exception):
         content={"message": "Internal Server Error"},
     )
 
-scheduler = BackgroundScheduler()
-scheduler.start()
-
-# Add the job to the scheduler to run every 2 minutes
-scheduler.add_job(delete_expired_codes_and_users, 'interval', minutes=2)
-
 router = APIRouter()
 
-# Move the root route here to ensure it is registered
 @router.get("/")
 def read_root():
     return "Success! Go to /docs for Swagger API"
@@ -124,9 +79,28 @@ app.include_router(user_router, prefix="/api/user", tags=["User"])
 app.include_router(statistics_router, prefix="/api/statistics", tags=["Statistics"])
 app.include_router(contacts_router, prefix="/api/contacts", tags=["Contacts"])
 
-@app.on_event("shutdown")
-def shutdown_event():
-    scheduler.shutdown()
+
+async def delete_expired_codes():
+    """Background task to delete expired codes."""
+    while True:
+        try:
+            db: Session = SessionLocal()
+            expiration_time = datetime.now(tz=timezone.utc) - timedelta(minutes=5)
+            expired_codes = db.query(Code).filter(Code.created_at < expiration_time).all()
+            for code in expired_codes:
+                db.delete(code)
+            db.commit()
+            db.close()
+            logger.info(f"Deleted {len(expired_codes)} expired codes.")
+        except Exception as e:
+            logger.error(f"Error deleting expired codes: {e}")
+        await asyncio.sleep(300)  # Sleep for 5 minutes
+
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(delete_expired_codes())
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
