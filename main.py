@@ -7,13 +7,10 @@ from datetime import datetime, timezone, timedelta
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import uvicorn
+from pytz import timezone as pytz_timezone
 
 from database import SessionLocal, engine, Base
 from models.user import User, Code
-
-from routers.user import router as user_router
-from routers.statistics import router as statistics_router
-from routers.contacts import router as contacts_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,17 +39,29 @@ app.add_middleware(
 def delete_expired_codes_and_users():
     db: Session = SessionLocal()
     try:
-        now = datetime.now(tz=timezone.utc)  # Get the current time in UTC
+        # Define the time zone of the stored timestamps (in your case +02:00)
+        stored_timezone = pytz_timezone('Europe/Prague')
+        
+        # Get the current UTC time
+        now_utc = datetime.now(tz=timezone.utc)
 
-        # Find expired codes (older than 5 minutes)
-        expired_codes = db.query(Code).filter(Code.created_at < (now - timedelta(minutes=5))).all()
+        # Convert current UTC time to the stored time zone
+        now_in_stored_tz = now_utc.astimezone(stored_timezone)
+        
+        logger.info(f"Current time in stored timezone: {now_in_stored_tz.isoformat()}")
+        
+        # Find expired codes (older than 5 minutes in the stored time zone)
+        expired_codes = db.query(Code).filter(Code.created_at < (now_in_stored_tz - timedelta(minutes=5))).all()
         logger.info(f"Found {len(expired_codes)} expired codes")
         for code in expired_codes:
             logger.info(f"Deleting code created at {code.created_at}")
             db.delete(code)
 
-        # Find unverified users older than 7 days
-        old_unverified_users = db.query(User).filter(User.is_verified == False, User.created_at < (now - timedelta(days=7))).all()
+        # Find unverified users older than 7 days in the stored time zone
+        old_unverified_users = db.query(User).filter(
+            User.is_verified == False, 
+            User.created_at < (now_in_stored_tz - timedelta(days=7))
+        ).all()
         logger.info(f"Found {len(old_unverified_users)} old unverified users")
         for user in old_unverified_users:
             logger.info(f"Deleting user created at {user.created_at}")
