@@ -39,6 +39,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def delete_expired_codes_and_users():
+    db: Session = SessionLocal()
+    try:
+        now = datetime.now(tz=timezone.utc)
+        
+        expired_codes = db.query(Code).filter(Code.created_at < (now - timedelta(minutes=5))).all()
+        for code in expired_codes:
+            db.delete(code)
+        
+        old_unverified_users = db.query(User).filter(User.is_verified == False, User.created_at < (now - timedelta(days=7))).all()
+        for user in old_unverified_users:
+            db.delete(user)
+        
+        db.commit()
+    finally:
+        db.close()
+
+
 # Custom middleware for CORS exceptions
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -74,6 +92,9 @@ async def exception_handler(request: Request, exc: Exception):
 scheduler = BackgroundScheduler()
 scheduler.start()
 
+# Add the job to the scheduler to run every 5 minutes
+scheduler.add_job(delete_expired_codes_and_users, 'interval', minutes=2)
+
 router = APIRouter()
 
 # Move the root route here to ensure it is registered
@@ -85,23 +106,6 @@ app.include_router(router)
 app.include_router(user_router, prefix="/api/user", tags=["User"])
 app.include_router(statistics_router, prefix="/api/statistics", tags=["Statistics"])
 app.include_router(contacts_router, prefix="/api/contacts", tags=["Contacts"])
-
-def delete_expired_codes_and_users():
-    db: Session = SessionLocal()
-    try:
-        now = datetime.now(tz=timezone.utc)
-        
-        expired_codes = db.query(Code).filter(Code.created_at < (now - timedelta(minutes=5))).all()
-        for code in expired_codes:
-            db.delete(code)
-        
-        old_unverified_users = db.query(User).filter(User.is_verified == False, User.created_at < (now - timedelta(days=7))).all()
-        for user in old_unverified_users:
-            db.delete(user)
-        
-        db.commit()
-    finally:
-        db.close()
 
 @app.on_event("shutdown")
 def shutdown_event():
