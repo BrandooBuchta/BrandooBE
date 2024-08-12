@@ -42,20 +42,28 @@ app.add_middleware(
 def delete_expired_codes_and_users():
     db: Session = SessionLocal()
     try:
-        now = datetime.now(tz=timezone.utc)
-        
+        now = datetime.now(tz=timezone.utc)  # Get the current time in UTC
+
+        # Find expired codes (older than 5 minutes)
         expired_codes = db.query(Code).filter(Code.created_at < (now - timedelta(minutes=5))).all()
+        logger.info(f"Found {len(expired_codes)} expired codes")
         for code in expired_codes:
+            logger.info(f"Deleting code created at {code.created_at}")
             db.delete(code)
-        
+
+        # Find unverified users older than 7 days
         old_unverified_users = db.query(User).filter(User.is_verified == False, User.created_at < (now - timedelta(days=7))).all()
+        logger.info(f"Found {len(old_unverified_users)} old unverified users")
         for user in old_unverified_users:
+            logger.info(f"Deleting user created at {user.created_at}")
             db.delete(user)
-        
+
         db.commit()
+    except Exception as e:
+        logger.error(f"Error during cleanup: {e}")
+        db.rollback()
     finally:
         db.close()
-
 
 # Custom middleware for CORS exceptions
 class CustomCORSMiddleware(BaseHTTPMiddleware):
@@ -92,7 +100,7 @@ async def exception_handler(request: Request, exc: Exception):
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# Add the job to the scheduler to run every 5 minutes
+# Add the job to the scheduler to run every 2 minutes
 scheduler.add_job(delete_expired_codes_and_users, 'interval', minutes=2)
 
 router = APIRouter()
