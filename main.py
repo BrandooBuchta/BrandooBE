@@ -30,6 +30,7 @@ origins = [
     "http://localhost:3001",
     "https://www.brandoo.cz",
     "https://app.brandoo.cz",
+    "https://api.brandoo.cz"
 ]
 
 app.add_middleware(
@@ -60,7 +61,7 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         if request.url.path.startswith("/api/contacts/new-contact") or request.url.path.startswith("/api/statistics/value"):
             response.headers["Access-Control-Allow-Origin"] = "*"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
             response.headers["Access-Control-Allow-Headers"] = "*"
         return response
 
