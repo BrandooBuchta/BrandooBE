@@ -5,6 +5,7 @@ from uuid import UUID
 from utils.security import get_password_hash, verify_password, create_access_token, create_constant_token
 from datetime import datetime, timezone, timedelta
 from cryptography.fernet import Fernet
+from utils.email import send_delete_user_email
 import uuid
 
 def create_user(db: Session, user: UserCreate):
@@ -45,6 +46,20 @@ def delete_user(db: Session, user_id: UUID):
         db.commit()
         return True
     return False
+
+def delete_unverified_users(db: Session):
+    one_week_ago = datetime.now() - timedelta(weeks=1)
+    
+    db_users = db.query(User).filter(
+        User.is_verified == False,
+        User.created_at < one_week_ago
+    ).all()
+    
+    for user in db_users:
+        send_delete_user_email(user.email)
+        db.delete(user)
+    
+    db.commit()
 
 def create_token_via_id(db: Session, user_id: UUID):
     expires_at = datetime.utcnow() + timedelta(days=30)
@@ -96,6 +111,8 @@ def verify_code(db: Session, user_id: UUID, code: str) -> bool:
             return True
     return False
 
+
+
 def update_password(db: Session, user_id: UUID, new_password: str):
     db_user = get_user(db, user_id)
     if db_user:
@@ -104,3 +121,15 @@ def update_password(db: Session, user_id: UUID, new_password: str):
         db.refresh(db_user)
         return db_user
     return None
+
+def delete_expired_code(db: Session):
+    five_minutes = datetime.now() - timedelta(minutes=5)
+    
+    db_codes = db.query(Code).filter(
+        Code.created_at < five_minutes
+    ).all()
+    
+    for code in db_codes:
+        db.delete(code)
+    
+    db.commit()

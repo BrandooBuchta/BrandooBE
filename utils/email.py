@@ -38,19 +38,28 @@ def send_email(subject: str, recipient: str, body: str):
         print(f"Error sending email: {e}")
 
 def send_verification_email(email: str, code: str):
-    subject = "Statistify - Verify your email"
+    subject = "Brandoo - Verifikace uživatele"
     body = getEmailHtml(
-        'User Verification', 
-        'Here`s your verification code, do not share this code.',
+        'Verifikace Uživatele', 
+        'Zde je kód pro verifikaci, nesdílejte tento kód s nikým.',
         code
     )
     send_email(subject, email, body)
 
 def send_reset_email(email: str, code: str):
-    subject = "Statistify Reset your password"
+    subject = "Brandoo - Změna hesla"
     body = getEmailHtml(
-        'Password Reset', 
-        'Here`s your password reset code, do not share this code.',
+        'Změna Hesla', 
+        'Zde je kód pro změnu hesla, nesdílejte tento kód s nikým.',
+        code
+    )
+    send_email(subject, email, body)
+
+def send_delete_user_email(email: str, code: str):
+    subject = "Brandoo - Smazání vašeho účtu"
+    body = getEmailHtml(
+        'Smazání Vašeho Účtu', 
+        'Váš účet byl smazán z důvodu neověření vaší identity.',
         code
     )
     send_email(subject, email, body)

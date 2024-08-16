@@ -90,7 +90,7 @@ def start_password_reset(email: str, db: Session = Depends(get_db)):
 def verify_reset_code(code: str, email: str, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email)
     if not db_user:
-        return {"isEqual": False}
+        raise HTTPException(status_code=404, detail="Code is wrong or expired")
     
     is_code_valid = verify_code(db, db_user.id, code)
     return {"isEqual": is_code_valid}
