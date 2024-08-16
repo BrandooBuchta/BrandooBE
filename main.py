@@ -85,7 +85,7 @@ def print_message():
         db.close()
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(print_message, trigger=IntervalTrigger(minutes=1))
+scheduler.add_job(print_message, trigger=IntervalTrigger(hours=1))
 scheduler.start()
 
 router = APIRouter()
