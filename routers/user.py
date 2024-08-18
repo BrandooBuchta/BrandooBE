@@ -54,7 +54,7 @@ def sign_in_user(sign_in_data: UserSignIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     if not db_user or not verify_password(sign_in_data.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    access_token = get_token(db, db_user.id)
+    token = get_token(db, db_user.id)
     return {"token": token, "user": db_user}
 
 @router.post("/start-verification/{user_id}")

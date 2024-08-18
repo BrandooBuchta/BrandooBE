@@ -76,7 +76,7 @@ async def exception_handler(request: Request, exc: Exception):
         content={"message": "Internal Server Error"},
     )
 
-def print_message():
+def refresh_hook():
     db = SessionLocal()
     try:
         delete_unverified_users(db)
@@ -86,7 +86,7 @@ def print_message():
         db.close()
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(print_message, trigger=IntervalTrigger(minutes=1))
+scheduler.add_job(refresh_hook, trigger=IntervalTrigger(hours=1))
 scheduler.start()
 
 router = APIRouter()
