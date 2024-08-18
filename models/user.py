@@ -26,7 +26,6 @@ class Token(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     auth_token = Column(String, nullable=False)
-    constant_access_token = Column(String, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     user_id = Column(UUID(as_uuid=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

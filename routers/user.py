@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from schemas.user import UserCreate, UserUpdate, Token, CodeVerification, PasswordReset, auth_tokenRequest, auth_tokenResponse, User as UserSchema, UserSignIn
-from crud.user import create_user, get_user, get_user_by_email, update_user, delete_user, create_token_via_id, create_token_via_access_token, create_code, verify_code, update_password, get_token
+from schemas.user import UserCreate, UserUpdate, Token, CodeVerification, PasswordReset, User as UserSchema, UserSignIn
+from crud.user import create_user, get_user, get_user_by_email, update_user, delete_user, create_token_via_id, create_code, verify_code, update_password, get_token
 from utils.security import verify_password, create_access_token, verify_token
 from utils.email import send_verification_email, send_reset_email
 from uuid import UUID
@@ -55,7 +55,6 @@ def sign_in_user(sign_in_data: UserSignIn, db: Session = Depends(get_db)):
     if not db_user or not verify_password(sign_in_data.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     access_token = get_token(db, db_user.id)
-    token = create_token_via_access_token(db, access_token.constant_access_token)
     return {"token": token, "user": db_user}
 
 @router.post("/start-verification/{user_id}")
@@ -107,10 +106,3 @@ def finish_password_reset(code: str, password: str, email: str, db: Session = De
     if not updated_user:
         raise HTTPException(status_code=404, detail="User not found")
     return {"detail": "Password updated"}
-
-@router.post("/getauth_token", response_model=auth_tokenResponse)
-def get_auth_token(request: auth_tokenRequest, db: Session = Depends(get_db)):
-    new_token = create_token_via_access_token(db, request.constant_access_token)
-    if not new_token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    return new_token

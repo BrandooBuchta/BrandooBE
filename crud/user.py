@@ -66,7 +66,6 @@ def create_token_via_id(db: Session, user_id: UUID):
     db_token = Token(
         id=uuid.uuid4(),
         auth_token=create_access_token(user_id),
-        constant_access_token=create_constant_token(user_id),
         expires_at=expires_at,
         user_id=user_id
     )
@@ -75,17 +74,18 @@ def create_token_via_id(db: Session, user_id: UUID):
     db.refresh(db_token)
     return db_token
 
-def create_token_via_access_token(db: Session, constant_access_token: str):
-    db_token = db.query(Token).filter(Token.constant_access_token == constant_access_token).first()
-    if not db_token:
-        return None
-    expires_at = datetime.utcnow() + timedelta(days=30)
-    new_auth_token = create_access_token(db_token.user_id)
-    db_token.auth_token = new_auth_token
-    db_token.expires_at = expires_at
+def refresh_all_auth_tokens(db: Session):
+    db_tokens = db.query(Token).filter(Token.expires_at <= datetime.utcnow()).all()
+    
+    for token in db_tokens:
+        create_token_via_id(db, token.user_id)
+    
     db.commit()
-    db.refresh(db_token)
-    return db_token
+    
+    for token in db_tokens:
+        db.delete(token)
+    
+    db.commit()
 
 def get_token(db: Session, user_id: UUID):
     return db.query(Token).filter(Token.user_id == user_id).first()

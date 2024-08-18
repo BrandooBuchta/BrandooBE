@@ -38,7 +38,6 @@ class User(BaseModel):
 
 class TokenData(BaseModel):
     auth_token: str
-    constant_access_token: str
     user_id: UUID
     expires_at: datetime
     created_at: datetime
@@ -55,15 +54,6 @@ class PasswordReset(BaseModel):
     code: str
     password: str
     email: EmailStr
-
-class auth_tokenRequest(BaseModel):
-    constant_access_token: str
-
-class auth_tokenResponse(BaseModel):
-    auth_token: str
-    constant_access_token: str
-    user_id: UUID
-    expires_at: datetime
 
 class UserSignIn(BaseModel):
     email: EmailStr

@@ -17,7 +17,7 @@ from models.user import User, Code
 from routers.user import router as user_router
 from routers.statistics import router as statistics_router
 from routers.contacts import router as contacts_router
-from crud.user import delete_unverified_users, delete_expired_code
+from crud.user import delete_unverified_users, delete_expired_code, refresh_all_auth_tokens
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -81,11 +81,12 @@ def print_message():
     try:
         delete_unverified_users(db)
         delete_expired_code(db)
+        refresh_all_auth_tokens(db)
     finally:
         db.close()
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(print_message, trigger=IntervalTrigger(hours=1))
+scheduler.add_job(print_message, trigger=IntervalTrigger(minutes=1))
 scheduler.start()
 
 router = APIRouter()
