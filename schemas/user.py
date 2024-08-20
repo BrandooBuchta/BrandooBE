@@ -1,3 +1,5 @@
+# schemas/user.py
+
 from pydantic import BaseModel, EmailStr
 from uuid import UUID
 from datetime import datetime
@@ -31,7 +33,8 @@ class User(BaseModel):
     web_url: str
     created_at: datetime
     updated_at: datetime
-    encryption_key: str
+    public_key: str
+    encrypted_private_key: str
 
     class Config:
         from_attributes = True
@@ -43,8 +46,12 @@ class TokenData(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-class Token(BaseModel):
+class Security(BaseModel):
+    private_key: str
     token: TokenData
+
+class SignInResponse(BaseModel):
+    security: Security
     user: User
 
 class CodeVerification(BaseModel):

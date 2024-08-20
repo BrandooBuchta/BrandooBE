@@ -31,11 +31,6 @@ def create_access_token(user_id: str) -> str:
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def create_constant_token(user_id: str) -> str:
-    to_encode = {"sub": str(user_id), "type": "constant"}
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
 def verify_token(db: Session, user_id: str, token: str) -> bool:
     db_token = db.query(Token).filter(Token.user_id == user_id).first()
     if not db_token:
@@ -51,18 +46,48 @@ def verify_token(db: Session, user_id: str, token: str) -> bool:
     except jwt.PyJWTError:
         return False
 
-def encrypt_data(data: str, key: str) -> str:
+def generate_key_from_password(password: str) -> str:
+    digest = hashlib.sha256(password.encode()).digest()
+    return base64.urlsafe_b64encode(digest)[:32]
+
+def encrypt_private_key_via_password(data: str, password: str) -> str:
     if data:
-        fernet = Fernet(key.encode())
+        key = generate_key_from_password(password)
+        fernet = Fernet(key)
         return fernet.encrypt(data.encode()).decode()
     return data
 
-def decrypt_data(data: str, key: str) -> str:
+def decrypt_private_key_via_password(data: str, password: str) -> str:
     if data:
-        fernet = Fernet(key.encode())
+        key = generate_key_from_password(password)
+        fernet = Fernet(key)
         try:
             decrypted_data = fernet.decrypt(data.encode()).decode()
             return decrypted_data
         except InvalidToken:
             return None
     return data
+
+def encrypt_data(data: str, key: str) -> str:
+    fernet = Fernet(key)
+    encrypted_data = fernet.encrypt(data.encode())
+    return encrypted_data.decode()
+
+def decrypt_data(encrypted_data: str, key: str) -> str:
+    fernet = Fernet(key)
+    try:
+        decrypted_data = fernet.decrypt(encrypted_data.encode())
+        return decrypted_data.decode()
+    except InvalidToken:
+        return None
+
+def generate_key_pair():
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+    public_key = private_key.public_key()
+    return private_key, public_key
+
+    

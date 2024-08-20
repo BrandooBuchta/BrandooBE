@@ -1,9 +1,11 @@
+# routers/user.py
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from schemas.user import UserCreate, UserUpdate, Token, CodeVerification, PasswordReset, User as UserSchema, UserSignIn
+from schemas.user import UserCreate, UserUpdate, SignInResponse, CodeVerification, PasswordReset, User as UserSchema, UserSignIn
 from crud.user import create_user, get_user, get_user_by_email, update_user, delete_user, create_token_via_id, create_code, verify_code, update_password, get_token
-from utils.security import verify_password, create_access_token, verify_token
+from utils.security import verify_password, create_access_token, verify_token, decrypt_private_key_via_password
 from utils.email import send_verification_email, send_reset_email
 from uuid import UUID
 from fastapi.security import OAuth2PasswordBearer
@@ -47,15 +49,22 @@ def update_existing_user(user_id: UUID, user: UserUpdate, token: str = Depends(o
         raise HTTPException(status_code=404, detail="User not found")
     return updated_user
 
-@router.post("/sign-in", response_model=Token)
+@router.post("/sign-in", response_model=SignInResponse)
 def sign_in_user(sign_in_data: UserSignIn, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, sign_in_data.email)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     if not db_user or not verify_password(sign_in_data.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    private_key = decrypt_private_key_via_password(db_user.encrypted_private_key, sign_in_data.password)
     token = get_token(db, db_user.id)
-    return {"token": token, "user": db_user}
+    return {
+        "user": db_user,
+        "security": {
+            "token": token,
+            "private_key": private_key
+        }, 
+    }
 
 @router.post("/start-verification/{user_id}")
 def start_verification(user_id: UUID, db: Session = Depends(get_db)):

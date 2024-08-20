@@ -1,14 +1,19 @@
+# crud/user.py
+
 from sqlalchemy.orm import Session
 from models.user import User, Token, Code
 from schemas.user import UserCreate, UserUpdate
 from uuid import UUID
-from utils.security import get_password_hash, verify_password, create_access_token, create_constant_token
+from utils.security import get_password_hash, verify_password, create_access_token
 from datetime import datetime, timezone, timedelta
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet 
 from utils.email import send_delete_user_email
+from utils.security import decrypt_private_key_via_password, encrypt_private_key_via_password, generate_key_pair
 import uuid
 
 def create_user(db: Session, user: UserCreate):
+    private_key, public_key = generate_key_pair()
+
     db_user = User(
         id=uuid.uuid4(),
         name=user.name,
@@ -16,7 +21,8 @@ def create_user(db: Session, user: UserCreate):
         password=get_password_hash(user.password),
         type=user.type,
         web_url=user.web_url,
-        encryption_key=Fernet.generate_key().decode()
+        encrypted_private_key=encrypt_private_key_via_password(private_key, user.password),
+        public_key=public_key
     )
     db.add(db_user)
     db.commit()

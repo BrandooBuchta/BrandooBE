@@ -1,3 +1,5 @@
+# main.py
+
 import logging
 import asyncio
 from fastapi import FastAPI, Request, APIRouter
@@ -16,7 +18,7 @@ from models.user import User, Code
 
 from routers.user import router as user_router
 from routers.statistics import router as statistics_router
-from routers.contacts import router as contacts_router
+from routers.form import router as form_router
 from crud.user import delete_unverified_users, delete_expired_code, refresh_all_auth_tokens
 
 logging.basicConfig(level=logging.INFO)
@@ -98,7 +100,7 @@ def read_root():
 app.include_router(router)
 app.include_router(user_router, prefix="/api/user", tags=["User"])
 app.include_router(statistics_router, prefix="/api/statistics", tags=["Statistics"])
-app.include_router(contacts_router, prefix="/api/contacts", tags=["Contacts"])
+app.include_router(form_router, prefix="/api/contacts", tags=["Contacts"])
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
