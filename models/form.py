@@ -20,6 +20,7 @@ class Form(Base):
 
     properties = relationship("FormProperty", back_populates="form", cascade="all, delete-orphan")
     responses = relationship("FormResponse", back_populates="form", cascade="all, delete-orphan")
+    values = relationship("FormValue", back_populates="form", cascade="all, delete-orphan")
 
 class FormProperty(Base):
     __tablename__ = "form_property"

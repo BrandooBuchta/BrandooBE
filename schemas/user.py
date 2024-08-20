@@ -39,6 +39,22 @@ class User(BaseModel):
     class Config:
         from_attributes = True
 
+class UserResponse(BaseModel):
+    id: UUID
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    registration_no: Optional[str] = None
+    name: str
+    email: EmailStr
+    is_verified: bool
+    type: str
+    web_url: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class TokenData(BaseModel):
     auth_token: str
     user_id: UUID
@@ -52,7 +68,7 @@ class Security(BaseModel):
 
 class SignInResponse(BaseModel):
     security: Security
-    user: User
+    user: UserResponse
 
 class CodeVerification(BaseModel):
     code: str

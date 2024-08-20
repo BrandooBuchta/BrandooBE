@@ -1,6 +1,8 @@
 # utils/security.py
 import os
 import jwt
+import hashlib
+import base64
 from dotenv import load_dotenv
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -8,6 +10,9 @@ from datetime import datetime, timedelta
 from cryptography.fernet import Fernet, InvalidToken
 import logging
 from models.user import Token
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
 
 load_dotenv()
 
@@ -48,14 +53,23 @@ def verify_token(db: Session, user_id: str, token: str) -> bool:
 
 def generate_key_from_password(password: str) -> str:
     digest = hashlib.sha256(password.encode()).digest()
-    return base64.urlsafe_b64encode(digest)[:32]
+    return base64.urlsafe_b64encode(digest)
 
-def encrypt_private_key_via_password(data: str, password: str) -> str:
-    if data:
+
+def encrypt_private_key_via_password(private_key, password: str) -> str:
+    if private_key:
         key = generate_key_from_password(password)
         fernet = Fernet(key)
-        return fernet.encrypt(data.encode()).decode()
-    return data
+        
+        pem_data = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+        
+        encrypted_pem_data = fernet.encrypt(pem_data).decode()
+        return encrypted_pem_data
+    return None
 
 def decrypt_private_key_via_password(data: str, password: str) -> str:
     if data:
@@ -65,6 +79,7 @@ def decrypt_private_key_via_password(data: str, password: str) -> str:
             decrypted_data = fernet.decrypt(data.encode()).decode()
             return decrypted_data
         except InvalidToken:
+            logging.error("Invalid token for private key decryption.")
             return None
     return data
 

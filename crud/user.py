@@ -10,9 +10,15 @@ from cryptography.fernet import Fernet
 from utils.email import send_delete_user_email
 from utils.security import decrypt_private_key_via_password, encrypt_private_key_via_password, generate_key_pair
 import uuid
+from cryptography.hazmat.primitives import serialization
 
 def create_user(db: Session, user: UserCreate):
     private_key, public_key = generate_key_pair()
+
+    public_key_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode('utf-8')
 
     db_user = User(
         id=uuid.uuid4(),
@@ -22,7 +28,7 @@ def create_user(db: Session, user: UserCreate):
         type=user.type,
         web_url=user.web_url,
         encrypted_private_key=encrypt_private_key_via_password(private_key, user.password),
-        public_key=public_key
+        public_key=public_key_pem  # Store as string
     )
     db.add(db_user)
     db.commit()
