@@ -100,7 +100,7 @@ def read_root():
 app.include_router(router)
 app.include_router(user_router, prefix="/api/user", tags=["User"])
 app.include_router(statistics_router, prefix="/api/statistics", tags=["Statistics"])
-app.include_router(form_router, prefix="/api/contacts", tags=["Contacts"])
+app.include_router(form_router, prefix="/api/forms", tags=["Forms"])
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
