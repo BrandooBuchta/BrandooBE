@@ -41,6 +41,9 @@ origins = [
     "http://localhost:3001",
     "https://www.brandoo.cz",
     "https://app.brandoo.cz",
+    "https://api.brandoo.cz",
+    "https://dev.api.brandoo.cz",
+    "https://dev.app.brandoo.cz",
 ]
 
 def get_db():
