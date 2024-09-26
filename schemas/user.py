@@ -11,6 +11,7 @@ class UserCreate(BaseModel):
     password: str
     type: str
     web_url: str
+    code: str
 
 class UserUpdate(BaseModel):
     contact_email: str = None

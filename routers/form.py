@@ -1,15 +1,23 @@
 # routers/form.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
+from sqlalchemy import desc
 from database import SessionLocal
-from schemas.form import CreateFormRequest, CreateForm, CreateFormPropertiesRequest, FormPropertyCRUDModelOptional, CreateFormResponseRequest
-from crud.form import create_form, get_form, create_form_property, update_form, delete_form, update_form_property, get_form_property, delete_form_property, create_response
-from utils.security import verify_token
+from utils.security import verify_token, rsa_decrypt_data, decrypt_private_key_for_fe
 from fastapi.security import OAuth2PasswordBearer
+from schemas.form import CreateForm, FormModel, FormModelPublic, UpdateForm, FormWithoutProperties, FormResponseMessagePublic, FormResponseMessageCreate, FormResponseMessageUpdate, UpdateContactLabels
+from crud.form import create_form, get_form, update_form, delete_form, get_users_form_menu, create_response, get_response_by_id, get_plain_response, update_response, create_form_response_message, get_messages_by_response_id, update_form_response_message, count_unseen_responses_by_user_id
+from crud.user import get_user
+from models.form import Form
 from uuid import UUID
-from typing import Optional, List
+from typing import List, Optional
+from models.form import FormResponse, FormValue
+from fastapi import Query
 from datetime import datetime
+import base64
+import logging
 
 origins = [
     "http://localhost",
@@ -30,90 +38,412 @@ def get_db():
     finally:
         db.close()
 
+def validate_iso_format(date_str: str) -> datetime:
+    try:
+        return datetime.fromisoformat(date_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
 
-def get_user(db: Session, user_id: UUID):
-    return db.query(User).filter(User.id == user_id).first()
+@router.post("/create-form/{user_id}", response_model=FormModel)
+def create_new_form(user_id: UUID, form: CreateForm, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    try:
+        if not verify_token(db, user_id, token):
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
-@router.post("/create-form/{user_id}", response_model=CreateForm)
-def create_new_form(user_id: UUID, form: CreateFormRequest, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    if not verify_token(db, user_id, token):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        form = create_form(db, form, user_id)
+        return form
+    except OperationalError as e:
+        raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
 
-    form = create_form(db, form, user_id)
+@router.get("/get-form/{form_id}", response_model=FormModel)
+def get_form_by_id(form_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    form = get_form(db, form_id)
 
-    return form
-
-@router.put("/update-form/{form_id}", response_model=CreateForm)
-def update_current_form(form_id: UUID, form: CreateFormRequest, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    if not verify_token(db, user_id, token):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-    form = update_form(db, form_id, form)
-
-    return form
-
-@router.delete("/delete-form/{form_id}")
-def update_current_form(form_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    if not verify_token(db, user_id, token):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-    delete_form(db, form_id)
-
-    return { "detail": "Successfuly deleted form!" }
-
-@router.get("/get-form-with-properties/{form_id}", response_model=CreateForm)
-def update_current_form(form_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    form = db.query(Form).options(joinedload(Form.properties)).filter(Form.id == form_id).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
 
     if not verify_token(db, form.user_id, token):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     return form
+    
+@router.get("/get-public-form/{form_id}", response_model=FormModelPublic)
+def get_form_by_id(form_id: UUID, db: Session = Depends(get_db)):
+    form = get_form(db, form_id)
+    
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+    return form
+    
+@router.put("/update-form/{form_id}", response_model=FormModel)
+def update_existing_form(form_id: UUID, update_data: UpdateForm, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    try:
+        form = update_form(db, form_id, update_data)
+        if not form:
+            raise HTTPException(status_code=404, detail="Form not found")
+        return form
+    except OperationalError as e:
+        raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
 
-@router.post("/create-form-properties")
-def create_new_form_properties(form_properties_request: CreateFormPropertiesRequest, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    if not verify_token(db, form_properties_request.user_id, token):
+@router.delete("/delete-form/{form_id}")
+def remove_form(form_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    try:
+        delete_form(db, form_id)
+        return {"message": "Form deleted successfully"}
+    except OperationalError as e:
+        raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
+
+@router.get("/get-users-forms/{user_id}", response_model=List[FormWithoutProperties])
+def get_users_forms_menu(user_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    if not verify_token(db, user_id, token):
         raise HTTPException(status_code=401, detail="Unauthorized")
     
-    for prop in form_properties_request.properties:
-        create_form_property(db, prop, form_properties_request.user_id, form_properties_request.user_id)
-    
-    return { "detail": "Successfully created new properties!" }
+    forms = get_users_form_menu(db, user_id)
+    if not forms:
+        raise HTTPException(status_code=404, detail="Unauthorized")
 
-@router.put("/update-form-property/{property_id}")
-def update_current_form_property(property_id: UUID, updated_form_property: FormPropertyCRUDModelOptional, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    status, form_property = get_form_property(db, property_id)
-    if not verify_token(db, form_property.user_id, token):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    update_form_property(db, updated_form_property, property_id)
-    
-    return { "detail": "Successfully updated form property!" }
+    return forms
 
-
-@router.delete("/delete-form-property/{property_id}")
-def delete_current_form_property(property_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    status, form_property = get_form_property(db, property_id)
-    if not verify_token(db, form_property.user_id, token):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    update_form_property(db, updated_form_property, property_id)
-    
-    return { "detail": "Successfully updated form property!" }
-
-@router.post("/new-response/{form_id}")
-def create_new_response(form_id: UUID, request: Request, body: CreateFormResponseRequest, db: Session = Depends(get_db)):
-    status_code, form = get_form(db, form_id)
-    if status_code == 404:
-        raise HTTPException(status_code=status_code, detail="Form not found")
-    
+@router.post("/create-response/{form_id}")
+async def create_form_response(form_id: UUID, request: Request, db: Session = Depends(get_db)):
+    form = get_form(db, form_id)
     user = get_user(db, form.user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    request_origin = request.headers.get("origin")
-    if not (user.web_url in request_origin or request_origin in origins):
-        raise HTTPException(status_code=405, detail="Method not allowed")
-    
-    new_response = create_response(db, form_id, body.values)
 
+    request_origin = request.headers.get("origin")
+    if request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
+        raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
+
+    try:
+        data = await request.json()
+        create_response(db, form_id, data)
+        return {"message": "Successfully created a response"}
+    except HTTPException as e:
+        raise e
+    except OperationalError as e:
+        raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
+    
+@router.get("/get-response/{response_id}")
+def get_form_response(response_id: UUID, request: Request, db: Session = Depends(get_db)):
+    try:
+        private_key = request.headers.get("X-Private-Key")
+        if not private_key:
+            raise HTTPException(status_code=400, detail="Missing X-Private-Key header")
+
+        decrypted_response = get_response_by_id(db, response_id, decrypt_private_key_for_fe(private_key))
+        return decrypted_response
+    except HTTPException as e:
+        raise e
+    except OperationalError as e:
+        raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
+
+@router.get("/form-table/{form_id}")
+def get_form_table(
+    form_id: UUID, 
+    request: Request, 
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1, description="Page number to retrieve"),
+    per_page: int = Query(10, ge=1, le=100, description="Number of items per page"),
+    search_query: Optional[str] = Query(None, description="Search query to filter responses"),
+    sort_by: Optional[str] = Query("created_at", description="Field to sort by"),
+    sort_order: Optional[str] = Query("desc", description="Sort order: asc or desc")
+):
+    try:
+        private_key = request.headers.get("X-Private-Key")
+        if not private_key:
+            raise HTTPException(status_code=400, detail="Missing X-Private-Key header")
+
+        # Get the form and ensure it exists
+        form = get_form(db, form_id)
+        if not form:
+            raise HTTPException(status_code=404, detail="Form not found")
+
+        # Base query for responses
+        query = db.query(FormResponse).filter(FormResponse.form_id == form_id)
+
+        # Apply sorting based on the `created_at` field
+        if sort_by == "created_at":
+            if sort_order == "asc":
+                query = query.order_by(FormResponse.created_at.asc())
+            else:
+                query = query.order_by(FormResponse.created_at.desc())
+
+        # Fetch all responses to filter them in memory
+        responses = query.all()
+
+        # Decrypt and filter responses in memory
+        filtered_responses = []
+        for response in responses:
+            decrypted_response = get_response_by_id(db, response.id, decrypt_private_key_for_fe(private_key))
+
+            # Check if search_query exists in any decrypted field
+            if not search_query or any(search_query.lower() in str(value).lower() for value in decrypted_response.values()):
+                filtered_responses.append((response, decrypted_response))
+
+        # Count total items after filtering
+        total_responses = len(filtered_responses)
+
+        # Apply pagination to the filtered responses
+        paginated_responses = filtered_responses[(page - 1) * per_page: page * per_page]
+
+        # Build the table header including additional fields
+        header = [
+            {"key": prop.key, "label": prop.label, "position": prop.position, "property_type": prop.property_type}
+            for prop in sorted(form.properties, key=lambda x: x.position)
+        ]
+        # Add headers for labels, seen, and created_at
+        header += [
+            {"key": "labels", "label": "Labels", "position": len(header) + 1, "property_type": "labels"},
+            {"key": "created_at", "label": "Created At", "position": len(header) + 3, "property_type": "date_time"}
+        ]
+
+        # Build the table body
+        body = []
+        for response, decrypted_response in paginated_responses:
+            row = {header_item["key"]: decrypted_response.get(header_item["key"], None) for header_item in header}
+            # Add values for labels, seen, and created_at
+            row["labels"] = response.labels
+            row["seen"] = response.seen
+            row["created_at"] = response.created_at.isoformat()
+            row["id"] = response.id
+            
+            body.append(row)
+
+        return {
+            "table": {
+                "header": header, 
+                "body": body
+            },
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total_pages": (total_responses + per_page - 1) // per_page,
+                "total_items": total_responses
+            }
+        }
+
+    except HTTPException as e:
+        raise e
+    except OperationalError as e:
+        raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
+
+@router.get("/users-forms-table/{user_id}")
+def get_users_forms_table(
+    user_id: UUID, 
+    request: Request, 
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1, description="Page number to retrieve"),
+    per_page: int = Query(10, ge=1, le=100, description="Number of items per page"),
+    search_query: Optional[str] = Query(None, description="Search query to filter responses"),
+    sort_by: Optional[str] = Query("created_at", description="Field to sort by"),
+    sort_order: Optional[str] = Query("desc", description="Sort order: asc or desc")
+):
+    try:
+        private_key = request.headers.get("X-Private-Key")
+        if not private_key:
+            raise HTTPException(status_code=400, detail="Missing X-Private-Key header")
+
+        # Získání všech formulářů pro uživatele
+        forms = db.query(Form).filter(Form.user_id == user_id).all()
+
+        if not forms:
+            raise HTTPException(status_code=404, detail="No forms found for user")
+
+        # Seznam všech odpovědí a společných klíčů
+        all_responses = []
+        common_keys = None
+
+        for form in forms:
+            query = db.query(FormResponse).filter(FormResponse.form_id == form.id)
+
+            if sort_by == "created_at":
+                if sort_order == "asc":
+                    query = query.order_by(FormResponse.created_at.asc())
+                else:
+                    query = query.order_by(FormResponse.created_at.desc())
+
+            responses = query.all()
+
+            for response in responses:
+                decrypted_response = get_response_by_id(db, response.id, decrypt_private_key_for_fe(private_key))
+
+                # Získání společných klíčů mezi všemi formuláři
+                if common_keys is None:
+                    common_keys = set(decrypted_response.keys())
+                else:
+                    common_keys.intersection_update(decrypted_response.keys())
+
+                all_responses.append((response, decrypted_response))
+
+        if common_keys is None:
+            common_keys = set()
+
+        # Filtrování odpovědí pouze na společné klíče
+        filtered_responses = []
+        for response, decrypted_response in all_responses:
+            filtered_response = {key: decrypted_response[key] for key in common_keys}
+            filtered_response["labels"] = response.labels
+            filtered_response["seen"] = response.seen
+            filtered_response["created_at"] = response.created_at.isoformat()
+            filtered_response["id"] = response.id
+            filtered_responses.append(filtered_response)
+
+        # Počet odpovědí
+        total_responses = len(filtered_responses)
+
+        # Stránkování
+        paginated_responses = filtered_responses[(page - 1) * per_page: page * per_page]
+
+        # Sestavení tabulky hlavičky
+        header = [{"key": key, "label": key.capitalize(), "position": idx + 1, "property_type": "string"} for idx, key in enumerate(common_keys)]
+        header += [
+            {"key": "labels", "label": "Labels", "position": len(header) + 1, "property_type": "string_array"},
+            {"key": "created_at", "label": "Created At", "position": len(header) + 2, "property_type": "date_time"}
+        ]
+
+        return {
+            "table": {
+                "header": header, 
+                "body": paginated_responses
+            },
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total_pages": (total_responses + per_page - 1) // per_page,
+                "total_items": total_responses
+            }
+        }
+
+    except HTTPException as e:
+        raise e
+    except OperationalError as e:
+        raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
+
+@router.get("/get-single-response/{response_id}")
+def get_single_response(response_id: UUID, request: Request, db: Session = Depends(get_db)):
+    try:
+        private_key = request.headers.get("X-Private-Key")
+        if not private_key:
+            raise HTTPException(status_code=400, detail="Missing X-Private-Key header")
+
+        decrypted_response = get_response_by_id(db, response_id, decrypt_private_key_for_fe(private_key))
+        
+        if not decrypted_response:
+            raise HTTPException(status_code=404, detail="Response not found")
+
+        response = db.query(FormResponse).filter(FormResponse.id == response_id).first()
+        if not response:
+            raise HTTPException(status_code=404, detail="Form response not found")
+
+        form = response.form
+        if not form:
+            raise HTTPException(status_code=404, detail="Form not found")
+
+        # Adding labels, created_at, and property_type to the formatted response
+        formatted_response = []
+        for key, value in decrypted_response.items():
+            form_property = next((prop for prop in form.properties if prop.key == key), None)
+            if form_property:
+                label = form_property.label
+                property_type = form_property.property_type
+                formatted_response.append({"label": label, "value": value, "property_type": property_type})
+
+        return {
+            "id": response_id,
+            "alias": response.alias or None,
+            "labels": response.labels,
+            "createdAt": response.created_at.isoformat(),
+            "response": formatted_response
+        }
+
+    except HTTPException as e:
+        raise e
+    except OperationalError as e:
+        raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
+
+@router.put("/update-contact-labels/{response_id}")
+def update_labels(response_id: UUID, body: UpdateContactLabels, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    db_response, status = get_plain_response(db, response_id)
+    if status == 404:
+        raise HTTPException(status_code=404, detail="Response not found")
+
+    if not verify_token(db, db_response.user_id, token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    updated_response = update_response(db, response_id, {"labels": body.labels})
+    if not updated_response:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    
+    return {"detail": "Success"}
+
+@router.put("/user-has-seen-response/{response_id}")
+def user_has_seen_response(response_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    db_response, status = get_plain_response(db, response_id)
+    if status == 404:
+        raise HTTPException(status_code=404, detail="Response not found")
+
+    if not verify_token(db, db_response.user_id, token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    updated_response = update_response(db, response_id, {"seen": True})
+    if not updated_response:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    
+    return {"detail": "Success"}
+
+@router.put("/update-response-alias/{response_id}")
+def user_has_seen_response(response_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db), alias: str = Query(None)):
+    db_response, status = get_plain_response(db, response_id)
+    if status == 404:
+        raise HTTPException(status_code=404, detail="Response not found")
+
+    if not verify_token(db, db_response.user_id, token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    updated_response = update_response(db, response_id, {"alias": alias})
+    if not updated_response:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    
+    return {"detail": "Success"}
+
+@router.post("/form-response-message", response_model=FormResponseMessagePublic)
+def create_message(message_data: FormResponseMessageCreate, db: Session = Depends(get_db)):
+    message = create_form_response_message(db, message_data)
+    return message
+
+@router.put("/form-response-message/{message_id}", response_model=FormResponseMessagePublic)
+def update_message(message_id: UUID, update_data: FormResponseMessageUpdate, db: Session = Depends(get_db)):
+    updated_message = update_form_response_message(db, message_id, update_data)
+    return updated_message
+
+@router.get("/form-response-messages/{response_id}", response_model=List[FormResponseMessagePublic])
+def get_messages(response_id: UUID, request: Request, db: Session = Depends(get_db)):
+    messages = get_messages_by_response_id(db, response_id)
+
+    private_key = request.headers.get("X-Private-Key")
+    if not private_key:
+        raise HTTPException(status_code=400, detail="Missing X-Private-Key header")
+    
+    if not messages:
+        return []
+
+    decrypted_messages = []
+
+    for m in messages:
+        m_dict = m.__dict__
+        m_dict.pop("_sa_instance_state", None)
+
+        decrypted_messages.append({
+            **m_dict,
+            "message": rsa_decrypt_data(m.message, decrypt_private_key_for_fe(private_key))
+        })
+
+    return decrypted_messages
+
+@router.get("/unseen-responses/{user_id}", response_model=int)
+def count_unseen_responses_user(user_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    if not verify_token(db, user_id, token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    unseen_count = count_unseen_responses_by_user_id(db, user_id)
+    
+    return unseen_count

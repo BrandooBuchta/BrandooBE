@@ -1,15 +1,13 @@
-# routers/user.py
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from schemas.user import UserCreate, UserUpdate, SignInResponse, CodeVerification, PasswordReset, User as UserSchema, UserSignIn
-from crud.user import create_user, get_user, get_user_by_email, update_user, delete_user, create_token_via_id, create_code, verify_code, update_password, get_token
-from utils.security import verify_password, create_access_token, verify_token, decrypt_private_key_via_password
-from utils.email import send_verification_email, send_reset_email
+from crud.user import create_user, get_user, get_user_by_email, update_user, delete_user, create_token_via_id, create_code, verify_code, update_password, get_token, create_code_for_new_user, verify_code_without_user_id
+from utils.security import verify_password, create_access_token, verify_token, decrypt_private_key_via_password, encrypt_private_key_for_fe
 from uuid import UUID
 from fastapi.security import OAuth2PasswordBearer
-from models.user import Token as TokenModel
+from utils.email import send_verification_email, send_reset_email
+import base64
 
 router = APIRouter()
 
@@ -26,14 +24,19 @@ def verify_user_via_token(db: Session, user_id: UUID, token: str):
     if not verify_token(db, user_id, token):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-@router.post("/create", response_model=UserSchema)
+@router.post("/create-code-for-new-user")
+def post_code_for_new_user(db: Session = Depends(get_db)):
+    code = create_code_for_new_user(db)
+    return code
+
+@router.post("/create")
 def create_new_user(user: UserCreate, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     new_user = create_user(db, user)
     token = create_token_via_id(db, new_user.id)
-    return new_user
+    return {"detail": "Succesfully created new user!"}
 
 @router.delete("/delete/{user_id}")
 def delete_existing_user(user_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -58,11 +61,12 @@ def sign_in_user(sign_in_data: UserSignIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     private_key = decrypt_private_key_via_password(db_user.encrypted_private_key, sign_in_data.password)
     token = get_token(db, db_user.id)
+
     return {
         "user": db_user,
         "security": {
             "token": token,
-            "private_key": private_key
+            "private_key": encrypt_private_key_for_fe(private_key)
         }, 
     }
 
@@ -75,15 +79,10 @@ def start_verification(user_id: UUID, db: Session = Depends(get_db)):
     send_verification_email(db_user.email, verification_code.code)
     return {"detail": "Verification email sent"}
 
-@router.post("/finish-verification/{user_id}", response_model=UserSchema)
-def finish_verification(user_id: UUID, code: CodeVerification, db: Session = Depends(get_db)):
-    if not verify_code(db, user_id, code.code):
-        raise HTTPException(status_code=400, detail="Invalid or expired code")
-    db_user = get_user(db, user_id) 
-    db_user.is_verified = True
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+@router.post("/verify-code/new")
+def verify_new_user_code(code: str = Query(None), db: Session = Depends(get_db)):
+    is_code_valid = verify_code_without_user_id(db, code)
+    return {"isEqual": is_code_valid}
 
 @router.post("/password-reset/start")
 def start_password_reset(email: str, db: Session = Depends(get_db)):
@@ -102,7 +101,6 @@ def verify_reset_code(code: str, email: str, db: Session = Depends(get_db)):
     
     is_code_valid = verify_code(db, db_user.id, code)
     return {"isEqual": is_code_valid}
-
 
 @router.post("/password-reset/finish")
 def finish_password_reset(code: str, password: str, email: str, db: Session = Depends(get_db)):

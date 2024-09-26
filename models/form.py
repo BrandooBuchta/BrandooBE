@@ -1,11 +1,12 @@
 # models/form.py
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Enum, ARRAY, Boolean
+from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Enum, ARRAY, Boolean, Time
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship 
 from sqlalchemy.sql import func
 import uuid
 from database import Base
+from datetime import timedelta
 
 class Form(Base):
     __tablename__ = "form"
@@ -14,7 +15,7 @@ class Form(Base):
     user_id = Column(UUID(as_uuid=True), nullable=False)
     name = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    form_properties = Column(ARRAY(String), nullable=True)
+    form_properties_ids = Column(ARRAY(UUID(as_uuid=True)), nullable=True)  # Ensure this is UUID, not string
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -30,7 +31,8 @@ class FormProperty(Base):
     form_id = Column(UUID(as_uuid=True), ForeignKey('form.id'), nullable=False)
     label = Column(String, nullable=False)
     key = Column(String, nullable=False)
-    description = Column(String, nullable=False)
+    options = Column(ARRAY(String), nullable=True)
+    required = Column(Boolean, default=True)
 
     property_type = Column(Enum(
         "short_text", 
@@ -39,7 +41,10 @@ class FormProperty(Base):
         "string_array", 
         "radio", 
         "checkbox", 
-        "selection", 
+        "selection",
+        "date_time",
+        "time",
+        "file",  # Přidána podpora pro soubory
         name="property_type_enum"), 
         nullable=False
     )
@@ -67,24 +72,20 @@ class FormValue(Base):
         "radio", 
         "checkbox", 
         "selection", 
+        "date_time",
+        "time",
+        "file",
         name="property_type_enum"), 
         nullable=False
     )
     
-    # values
-    short_text = Column(String, nullable=True)
-    long_text = Column(String, nullable=True)
-    boolean = Column(Boolean, nullable=True)
-    single_choice = Column(String, nullable=True)
-    multiple_choice = Column(ARRAY(String), nullable=True)
-    radio = Column(String, nullable=True)
-    checkbox = Column(ARRAY(String), nullable=True)
+    value = Column(String, nullable=True)  # Nový sloupec pro šifrované hodnoty
 
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     form = relationship("Form", back_populates="values")
-
+    
 class FormResponse(Base):
     __tablename__ = "form_response"
 
@@ -93,18 +94,20 @@ class FormResponse(Base):
     form_id = Column(UUID(as_uuid=True), ForeignKey('form.id'), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    form_values_ids = Column(ARRAY(String), nullable=False)
+    form_values_ids = Column(ARRAY(UUID(as_uuid=True)), nullable=True)  # Ensure this is UUID, not string
     labels = Column(ARRAY(String), nullable=False)
     seen = Column(Boolean, default=False)
+    alias = Column(String, nullable=True)
 
     form = relationship("Form", back_populates="responses")
 
-class Label(Base):
-    __tablename__ = "label"
+class FormResponseMessage(Base):
+    __tablename__ = "form_response_message"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    response_id = Column(UUID(as_uuid=True), nullable=False)
     user_id = Column(UUID(as_uuid=True), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    color = Column(String, nullable=False)
-    title = Column(String, nullable=False)
+    editable_until = Column(DateTime(timezone=True), server_default=func.now() + timedelta(minutes=15))
+    message = Column(String, nullable=False)

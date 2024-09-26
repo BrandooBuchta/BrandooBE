@@ -12,6 +12,19 @@ from utils.security import decrypt_private_key_via_password, encrypt_private_key
 import uuid
 from cryptography.hazmat.primitives import serialization
 
+def create_code_for_new_user(db: Session):
+    code = str(uuid.uuid4().int)[:6]
+    db_code = Code(
+        id=uuid.uuid4(),
+        type="create-user",
+        code=code,
+        user_id=uuid.uuid4()
+    )
+    db.add(db_code)
+    db.commit()
+    db.refresh(db_code)
+    return code
+    
 def create_user(db: Session, user: UserCreate):
     private_key, public_key = generate_key_pair()
 
@@ -20,17 +33,23 @@ def create_user(db: Session, user: UserCreate):
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     ).decode('utf-8')
 
+    db_code = db.query(Code).filter(Code.code == user.code).first()
+    
+    if not db_code:
+        return None, 404
+
     db_user = User(
-        id=uuid.uuid4(),
+        id=db_code.user_id,
         name=user.name,
         email=user.email,
         password=get_password_hash(user.password),
         type=user.type,
         web_url=user.web_url,
         encrypted_private_key=encrypt_private_key_via_password(private_key, user.password),
-        public_key=public_key_pem  # Store as string
+        public_key=public_key_pem
     )
     db.add(db_user)
+    db.delete(db_code)
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -123,7 +142,11 @@ def verify_code(db: Session, user_id: UUID, code: str) -> bool:
             return True
     return False
 
-
+def verify_code_without_user_id(db: Session, code: str) -> bool:
+    db_code = db.query(Code).filter(Code.code == code).first()
+    if db_code:
+        return True
+    return False
 
 def update_password(db: Session, user_id: UUID, new_password: str):
     db_user = get_user(db, user_id)
@@ -138,7 +161,8 @@ def delete_expired_code(db: Session):
     five_minutes = datetime.now() - timedelta(minutes=5)
     
     db_codes = db.query(Code).filter(
-        Code.created_at < five_minutes
+        Code.created_at < five_minutes,
+        Code.code_type == "create-user",
     ).all()
     
     for code in db_codes:

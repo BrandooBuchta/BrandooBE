@@ -3,13 +3,16 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 from dotenv import load_dotenv
+from typing import Optional
 
-def getEmailHtml(title: str, subtitle: str, code: str):
+def getEmailHtml(title: str, subtitle: str, code: str = None):
+    code_html = f"<strong style='font-size: 32px; color: white; padding: 20px 0px;'>{code}</strong>" if code else ""
+    
     return f"""
             <div style="text-align: center; background: #006fee; padding: 20px;">
                 <h1 style="font-size: 24px; margin: 0; color: white;">{title}</h1>
                 <p style="margin: 5px 0; color: white;">{subtitle}</p>
-                <strong style="font-size: 32px; color: white; padding: 20px 0px;">{code}</strong>
+                {code_html}
                 <div style="color: white;">{'no logo yet :P'}</div>
             </div>
         """
@@ -55,11 +58,10 @@ def send_reset_email(email: str, code: str):
     )
     send_email(subject, email, body)
 
-def send_delete_user_email(email: str, code: str):
+def send_delete_user_email(email: str):
     subject = "Brandoo - Smazání vašeho účtu"
     body = getEmailHtml(
         'Smazání Vašeho Účtu', 
         'Váš účet byl smazán z důvodu neověření vaší identity.',
-        code
     )
     send_email(subject, email, body)

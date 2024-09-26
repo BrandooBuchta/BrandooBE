@@ -67,3 +67,15 @@ def delete_statistic_value(db: Session, statistic_id: UUID):
 def get_statistic_type(db: Session, statistic_id: UUID):
     statistic = db.query(Statistic).filter(Statistic.id == statistic_id).first()
     return statistic.type if statistic else None
+
+def delete_statistic_value(db: Session, statistic_id: UUID):
+    db_value = db.query(StatisticValue).filter(StatisticValue.statistic_id == statistic_id).first()
+    if db_value:
+        db.delete(db_value)
+        db.commit()
+        return True
+    return False
+
+def reset_statistic(db: Session, statistic_id: UUID):
+    db.query(StatisticValue).filter(StatisticValue.statistic_id == statistic_id).delete()
+    db.commit()
