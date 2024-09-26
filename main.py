@@ -1,5 +1,4 @@
 import logging
-import asyncio
 from fastapi import FastAPI, Request, APIRouter, File, UploadFile, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
