@@ -8,10 +8,10 @@ asyncpg==0.29.0
 attrs==24.2.0
 bcrypt==4.2.0
 beautifulsoup4==4.12.3
-bs4==0.0.1
 bitarray==2.9.2
 bitstring==4.2.3
 blinker==1.8.2
+bs4==0.0.2
 certifi==2024.6.2
 cffi==1.16.0
 click==8.1.7
