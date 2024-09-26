@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "8520cd44fe4dc611a78357b32c557b0251d45c5b7a15ed0fd7d2ea470c63317f"
+            "sha256": "0cb1be1410897705693709346d334ddefa8cd89032f8c793f1bc46a4687786e2"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -59,16 +59,6 @@
             "index": "pypi",
             "markers": "python_version >= '3.6'",
             "version": "==3.10.4"
-        },
-        "asyncio": {
-            "hashes": [
-                "sha256:83360ff8bc97980e4ff25c964c7bd3923d333d177aa4f7fb736b019f26c7cb41",
-                "sha256:b62c9157d36187eca799c378e572c969f0da87cd5fc42ca372d92cdb06e7e1de",
-                "sha256:c46a87b48213d7464f22d9a497b9eef8c1928b68320a2fa94240f969f6fec08c",
-                "sha256:c4d18b22701821de07bd6aea8b53d21449ec0ec5680645e5317062ea21817d2d"
-            ],
-            "index": "pypi",
-            "version": "==3.4.3"
         },
         "asyncpg": {
             "hashes": [
@@ -517,7 +507,7 @@
                 "sha256:fa5ef23b2dea4d3ba4587f4bbb53f8f15274124998fb4e40629b3b636c76c398"
             ],
             "index": "pypi",
-            "markers": "python_version < '4.0' and python_full_version >= '3.8.1'",
+            "markers": "python_full_version >= '3.8.1' and python_version < '4.0'",
             "version": "==1.4.1"
         },
         "fernet": {
@@ -607,12 +597,12 @@
         },
         "httpx": {
             "hashes": [
-                "sha256:71d5465162c13681bff01ad59b2cc68dd838ea1f10e51574bac27103f00c91a5",
-                "sha256:a0cb88a46f32dc874e04ee956e4c2764aba2aa228f650b06788ba6bda2962ab5"
+                "sha256:7bb2708e112d8fdd7829cd4243970f0c223274051cb35ee80c03301ee29a3df0",
+                "sha256:f7c2be1d2f3c3c3160d441802406b206c2b76f5947b11115e6df10c6c65e66c2"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==0.27.0"
+            "version": "==0.27.2"
         },
         "idna": {
             "hashes": [
@@ -1142,7 +1132,7 @@
                 "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427"
             ],
             "index": "pypi",
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'",
             "version": "==2.9.0.post0"
         },
         "python-dotenv": {
@@ -1304,7 +1294,7 @@
                 "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"
             ],
             "index": "pypi",
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'",
             "version": "==1.16.0"
         },
         "sniffio": {
