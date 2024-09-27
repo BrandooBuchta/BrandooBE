@@ -494,7 +494,6 @@ def count_unseen_responses_user(form_id: UUID, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-
     props = []
 
     for prop in form.properties:
