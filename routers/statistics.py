@@ -141,6 +141,10 @@ def get_random_statistics(user_id: UUID, token: str = Depends(oauth2_scheme), db
 
     # Query all statistics with values from the last week for the specific user
     statistics = db.query(Statistic).join(Statistic.values).filter(Statistic.user_id == user_id, StatisticValue.created_at >= one_week_ago).all()
+    
+    if not statistics:
+        return []
+
 
     # If there are fewer than 3 statistics, return whatever is available
     if len(statistics) == 0:
