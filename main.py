@@ -29,7 +29,6 @@ from crud.user import delete_unverified_users, delete_expired_code, refresh_all_
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Database connection pool settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
