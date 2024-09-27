@@ -5,15 +5,15 @@ from typing import Optional, List
 
 class StatisticCreate(BaseModel):
     name: str
-    description: str
-    icon: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
     type: str
 
 class StatisticUpdate(BaseModel):
-    name: Optional[str]
-    description: Optional[str]
-    icon: Optional[str]
-    type: Optional[str]
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    type: Optional[str] = None
 
 class StatisticValueCreate(BaseModel):
     time: Optional[str] = None  # Use str to accept time input as a string
@@ -51,13 +51,14 @@ class StatisticValue(BaseModel):
 class Statistic(BaseModel):
     id: UUID
     name: str
-    description: str
-    icon: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
     type: str
     user_id: UUID
     created_at: datetime
     updated_at: datetime
-    values: List[StatisticValue] = []
+    values: List['StatisticValue'] = []
 
     class Config:
-        from_attributes = True
+        arbitrary_types_allowed = True
+

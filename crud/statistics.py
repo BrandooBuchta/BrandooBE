@@ -10,7 +10,7 @@ def create_statistic(db: Session, statistic: StatisticCreate, user_id: UUID):
         name=statistic.name,
         description=statistic.description,
         icon=statistic.icon,
-        type=statistic.type,  # Přidání pole type
+        type=statistic.type,
         user_id=user_id
     )
     db.add(db_statistic)

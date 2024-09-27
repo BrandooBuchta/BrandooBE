@@ -113,7 +113,7 @@ def get_users_form_menu(db: Session, user_id: UUID):
     db_forms = db.query(Form).filter(Form.user_id == user_id).all()
     
     if not db_forms:
-        return None
+        return []
     
     forms = []
 

@@ -7,7 +7,7 @@ from sqlalchemy import desc
 from database import SessionLocal
 from utils.security import verify_token, rsa_decrypt_data, decrypt_private_key_for_fe
 from fastapi.security import OAuth2PasswordBearer
-from schemas.form import CreateForm, FormModel, FormModelPublic, UpdateForm, FormWithoutProperties, FormResponseMessagePublic, FormResponseMessageCreate, FormResponseMessageUpdate, UpdateContactLabels
+from schemas.form import CreateForm, FormModel, FormModelPublic, UpdateForm, FormWithoutProperties, FormResponseMessagePublic, FormResponseMessageCreate, FormResponseMessageUpdate, UpdateContactLabels, FormPropertyManageModel, TermsAndConditions
 from crud.form import create_form, get_form, update_form, delete_form, get_users_form_menu, create_response, get_response_by_id, get_plain_response, update_response, create_form_response_message, get_messages_by_response_id, update_form_response_message, count_unseen_responses_by_user_id
 from crud.user import get_user
 from models.form import Form
@@ -54,9 +54,33 @@ def create_new_form(user_id: UUID, form: CreateForm, token: str = Depends(oauth2
             raise HTTPException(status_code=401, detail="Unauthorized")
 
         form = create_form(db, form, user_id)
+
+        initial_properties = [
+            {
+                "key": "email", 
+                "property_type": "short_text", 
+                "position": 0, 
+                "label": "Email", 
+                "required": True
+            },
+            {
+                "key": "privacyPolicy", 
+                "property_type": "boolean", 
+                "position": 1, 
+                "label": "Souhlasím s podmínkami zpracování osobních údajů", 
+                "required": True
+            }
+        ]
+        
+        update_form_data = UpdateForm(
+            properties=[FormPropertyManageModel(**prop) for prop in initial_properties]
+        )
+        update_form(db, form.id, update_form_data)
+        
         return form
     except OperationalError as e:
         raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
+
 
 @router.get("/get-form/{form_id}", response_model=FormModel)
 def get_form_by_id(form_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -245,13 +269,13 @@ def get_users_forms_table(
         if not private_key:
             raise HTTPException(status_code=400, detail="Missing X-Private-Key header")
 
-        # Získání všech formulářů pro uživatele
+        # Fetch all forms for the user
         forms = db.query(Form).filter(Form.user_id == user_id).all()
 
         if not forms:
             raise HTTPException(status_code=404, detail="No forms found for user")
 
-        # Seznam všech odpovědí a společných klíčů
+        # List of all responses and common keys
         all_responses = []
         common_keys = None
 
@@ -269,7 +293,7 @@ def get_users_forms_table(
             for response in responses:
                 decrypted_response = get_response_by_id(db, response.id, decrypt_private_key_for_fe(private_key))
 
-                # Získání společných klíčů mezi všemi formuláři
+                # Finding common keys among all forms' responses
                 if common_keys is None:
                     common_keys = set(decrypted_response.keys())
                 else:
@@ -280,24 +304,33 @@ def get_users_forms_table(
         if common_keys is None:
             common_keys = set()
 
-        # Filtrování odpovědí pouze na společné klíče
+        # Filter responses to only common keys and build formatted response body
         filtered_responses = []
         for response, decrypted_response in all_responses:
-            filtered_response = {key: decrypted_response[key] for key in common_keys}
-            filtered_response["labels"] = response.labels
-            filtered_response["seen"] = response.seen
-            filtered_response["created_at"] = response.created_at.isoformat()
-            filtered_response["id"] = response.id
-            filtered_responses.append(filtered_response)
+            row = {key: decrypted_response.get(key, None) for key in common_keys}
+            row["labels"] = response.labels
+            row["seen"] = response.seen
+            row["created_at"] = response.created_at.isoformat()
+            row["id"] = response.id
+            filtered_responses.append(row)
 
-        # Počet odpovědí
+        # Pagination logic
         total_responses = len(filtered_responses)
-
-        # Stránkování
         paginated_responses = filtered_responses[(page - 1) * per_page: page * per_page]
 
-        # Sestavení tabulky hlavičky
-        header = [{"key": key, "label": key.capitalize(), "position": idx + 1, "property_type": "string"} for idx, key in enumerate(common_keys)]
+        # Build table header with the correct labels from the first form properties
+        header = []
+        for idx, key in enumerate(common_keys):
+            # Find the first property with the matching key
+            form_property = next((prop for prop in forms[0].properties if prop.key == key), None)
+            if form_property:
+                label = form_property.label
+            else:
+                label = key  # Fallback to the key if no matching property is found
+            
+            header.append({"key": key, "label": label, "position": idx + 1, "property_type": "string"})
+
+        # Add headers for labels, seen, and created_at
         header += [
             {"key": "labels", "label": "Labels", "position": len(header) + 1, "property_type": "string_array"},
             {"key": "created_at", "label": "Created At", "position": len(header) + 2, "property_type": "date_time"}
@@ -450,3 +483,26 @@ def count_unseen_responses_user(user_id: UUID, token: str = Depends(oauth2_schem
     unseen_count = count_unseen_responses_by_user_id(db, user_id)
     
     return unseen_count
+
+@router.get("/terms-and-conditions/{form_id}", response_model=TermsAndConditions)
+def count_unseen_responses_user(form_id: UUID, db: Session = Depends(get_db)):
+    form = get_form(db, form_id)
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+
+    user = get_user(db, form.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+
+    props = []
+
+    for prop in form.properties:
+        props.append(prop.label)
+    
+    return TermsAndConditions(
+        contact_email=user.contact_email,
+        contact_phone=user.contact_phone,
+        registration_no=user.registration_no,
+        form_properties=props
+    )
