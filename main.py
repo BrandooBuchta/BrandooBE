@@ -36,7 +36,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(
     DATABASE_URL,
-    pool_size=10,  # Adjust based on your load
+    pool_size=10,
     max_overflow=20,  # Allow extra connections if needed
     pool_timeout=30,  # Adjust connection timeout
     pool_recycle=3600,  # Recycle connections after 1 hour
