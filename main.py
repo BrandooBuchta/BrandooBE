@@ -51,7 +51,6 @@ app = FastAPI(
     title="Brandoo API"
 )
 
-
 origins = [
     "http://localhost",
     "http://localhost:3000",
