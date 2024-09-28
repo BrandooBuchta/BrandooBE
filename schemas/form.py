@@ -82,3 +82,10 @@ class FormResponseMessagePublic(BaseModel):
     
 class UpdateContactLabels(BaseModel):
     labels: List[str]
+
+class TermsAndConditions(BaseModel):
+  registration_no: str
+  contact_email: str
+  contact_phone: str
+  form_properties: List[str] = []
+

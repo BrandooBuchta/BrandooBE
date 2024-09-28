@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+import random
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 from database import SessionLocal
 from schemas.statistics import StatisticCreate, StatisticUpdate, StatisticValueCreate, Statistic as StatisticSchema, StatisticValue as StatisticValueSchema
@@ -6,8 +7,22 @@ from crud.statistics import create_statistic, get_statistic, get_user_statistics
 from utils.security import verify_token
 from uuid import UUID
 from fastapi.security import OAuth2PasswordBearer
-from models.statistics import Statistic
+from models.statistics import Statistic, StatisticValue
 from models.user import User
+from typing import List
+from datetime import datetime, timedelta
+
+origins = [
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:8000",
+    "https://www.brandoo.cz",
+    "https://app.brandoo.cz",
+    "https://api.brandoo.cz",
+    "https://dev.api.brandoo.cz",
+    "https://dev.app.brandoo.cz",
+]
 
 def get_user(db: Session, user_id: UUID):
     return db.query(User).filter(User.id == user_id).first()
@@ -23,26 +38,31 @@ def get_db():
     finally:
         db.close()
 
-def verify_user_via_token(db: Session, user_id: UUID, token: str):
+@router.post("/new-statistic/{user_id}", response_model=StatisticSchema)
+def create_new_statistic(user_id: UUID, statistic: StatisticCreate, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     if not verify_token(db, user_id, token):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-@router.post("/new-statistic/{user_id}", response_model=StatisticSchema)
-def create_new_statistic(user_id: UUID, statistic: StatisticCreate, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    verify_user_via_token(db, user_id, token)
     new_statistic = create_statistic(db, statistic, user_id)
     return new_statistic
 
 @router.get("/get-statistic/{statistic_id}", response_model=StatisticSchema)
 def read_statistic(statistic_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     statistic = db.query(Statistic).options(joinedload(Statistic.values)).filter(Statistic.id == statistic_id).first()
+
     if not statistic:
         raise HTTPException(status_code=404, detail="Statistic not found")
+
+    if not verify_token(db, statistic.user_id, token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     return statistic
 
-@router.get("/get-users-statistics/{user_id}", response_model=list[StatisticSchema])
+@router.get("/get-users-statistics/{user_id}", response_model=List[StatisticSchema])
 def read_user_statistics(user_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    verify_user_via_token(db, user_id, token)
+    if not verify_token(db, user_id, token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     statistics = db.query(Statistic).options(joinedload(Statistic.values)).filter(Statistic.user_id == user_id).all()
     return statistics
 
@@ -51,7 +71,10 @@ def remove_statistic(statistic_id: UUID, token: str = Depends(oauth2_scheme), db
     statistic = get_statistic(db, statistic_id)
     if not statistic:
         raise HTTPException(status_code=404, detail="Statistic not found")
-    verify_user_via_token(db, statistic.user_id, token)
+
+    if not verify_token(db, statistic.user_id, token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
     delete_statistic(db, statistic_id)
     return {"detail": "Statistic deleted"}
 
@@ -60,11 +83,13 @@ def modify_statistic(statistic_id: UUID, statistic: StatisticUpdate, token: str 
     db_statistic = get_statistic(db, statistic_id)
     if not db_statistic:
         raise HTTPException(status_code=404, detail="Statistic not found")
-    verify_user_via_token(db, db_statistic.user_id, token)
+    
+    if not verify_token(db, db_statistic.user_id, token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     updated_statistic = update_statistic(db, statistic_id, statistic)
     return updated_statistic
 
-# TODO: Test it
 @router.post("/value/{statistic_id}", response_model=StatisticValueSchema)
 def add_statistic_value(statistic_id: UUID, request: Request, value: StatisticValueCreate, db: Session = Depends(get_db)):
     statistic_type = get_statistic_type(db, statistic_id)
@@ -109,3 +134,23 @@ def read_user_statistics(statistic_id: UUID, token: str = Depends(oauth2_scheme)
         raise HTTPException(status_code=401, detail="Unauthorized")
     reset_statistic(db, statistic_id)
     return { "detail": "Successfully reseted statistic." }
+
+@router.get("/random-statistics/{user_id}", response_model=List[StatisticSchema])
+def get_random_statistics(user_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    one_week_ago = datetime.now() - timedelta(weeks=1)
+
+    # Query all statistics with values from the last week for the specific user
+    statistics = db.query(Statistic).join(Statistic.values).filter(Statistic.user_id == user_id, StatisticValue.created_at >= one_week_ago).all()
+    
+    if not statistics:
+        return []
+
+
+    # If there are fewer than 3 statistics, return whatever is available
+    if len(statistics) == 0:
+        raise HTTPException(status_code=404, detail="No statistics found for this week.")
+    
+    # Return up to 3 random statistics
+    random_statistics = random.sample(statistics, min(len(statistics), 3))
+
+    return random_statistics
