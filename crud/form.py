@@ -46,7 +46,12 @@ def create_form(db: Session, form: CreateForm, user_id: UUID):
     return db_form
 
 def get_form(db: Session, form_id: UUID):
-    return db.query(Form).options(joinedload(Form.properties)).filter(Form.id == form_id).first()
+    form = db.query(Form).options(joinedload(Form.properties)).filter(Form.id == form_id).first()
+
+    if form:
+        form.properties = sorted(form.properties, key=lambda prop: prop.position)
+
+    return form
 
 def update_form(db: Session, form_id: UUID, update_data: UpdateForm):
     form = db.query(Form).filter(Form.id == form_id).first()

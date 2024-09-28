@@ -59,14 +59,14 @@ def create_new_form(user_id: UUID, form: CreateForm, token: str = Depends(oauth2
             {
                 "key": "email", 
                 "property_type": "short_text", 
-                "position": 0, 
+                "position": 1, 
                 "label": "Email", 
                 "required": True
             },
             {
                 "key": "privacyPolicy", 
                 "property_type": "boolean", 
-                "position": 1, 
+                "position": 2, 
                 "label": "Souhlasím s podmínkami zpracování osobních údajů", 
                 "required": True
             }
@@ -220,7 +220,7 @@ def get_form_table(
         # Add headers for labels, seen, and created_at
         header += [
             {"key": "labels", "label": "Labels", "position": len(header) + 1, "property_type": "labels"},
-            {"key": "created_at", "label": "Created At", "position": len(header) + 3, "property_type": "date_time"}
+            {"key": "created_at", "label": "Vytvořeno", "position": len(header) + 3, "property_type": "date_time"}
         ]
 
         # Build the table body
@@ -328,12 +328,12 @@ def get_users_forms_table(
             else:
                 label = key  # Fallback to the key if no matching property is found
             
-            header.append({"key": key, "label": label, "position": idx + 1, "property_type": "string"})
+            header.append({"key": key, "label": label, "position": idx + 1, "property_type": form_property.property_type})
 
         # Add headers for labels, seen, and created_at
         header += [
-            {"key": "labels", "label": "Labels", "position": len(header) + 1, "property_type": "string_array"},
-            {"key": "created_at", "label": "Created At", "position": len(header) + 2, "property_type": "date_time"}
+            {"key": "labels", "label": "Labels", "position": len(header) + 1, "property_type": "labels"},
+            {"key": "createdAt", "label": "Vytvořeno", "position": len(header) + 2, "property_type": "date_time"}
         ]
 
         return {
