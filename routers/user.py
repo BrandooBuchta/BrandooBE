@@ -1,13 +1,16 @@
+# routers/user.py
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from schemas.user import UserCreate, UserUpdate, SignInResponse, CodeVerification, PasswordReset, User as UserSchema, UserSignIn
 from crud.user import create_user, get_user, get_user_by_email, update_user, delete_user, create_token_via_id, create_code, verify_code, update_password, get_token, create_code_for_new_user, verify_code_without_user_id
-from utils.security import verify_password, create_access_token, verify_token, decrypt_private_key_via_password, encrypt_private_key_for_fe
+from utils.security import verify_password, create_access_token, verify_token, decrypt_private_key_via_password, encrypt_private_key_for_fe, generate_key_pair, encrypt_private_key_via_password
+from utils.email import send_verification_email, send_reset_email
 from uuid import UUID
 from fastapi.security import OAuth2PasswordBearer
 from utils.email import send_verification_email, send_reset_email
-import base64
+from cryptography.hazmat.primitives import serialization
 
 router = APIRouter()
 
@@ -109,7 +112,24 @@ def finish_password_reset(code: str, password: str, email: str, db: Session = De
         raise HTTPException(status_code=404, detail="User not found")
     if not verify_code(db, db_user.id, code):
         raise HTTPException(status_code=400, detail="Invalid or expired code")
+    
     updated_user = update_password(db, db_user.id, password)
     if not updated_user:
         raise HTTPException(status_code=404, detail="User not found")
-    return {"detail": "Password updated"}
+    
+    private_key, public_key = generate_key_pair()
+
+    public_key_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode('utf-8')
+
+    encrypted_private_key = encrypt_private_key_via_password(private_key, password)
+
+    db_user.encrypted_private_key = encrypted_private_key
+    db_user.public_key = public_key_pem
+    
+    db.commit()
+    db.refresh(db_user)
+    
+    return {"detail": "Password and keys updated successfully"}
