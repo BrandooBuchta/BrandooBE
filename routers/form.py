@@ -8,7 +8,7 @@ from database import SessionLocal
 from utils.security import verify_token, rsa_decrypt_data, decrypt_private_key_for_fe
 from fastapi.security import OAuth2PasswordBearer
 from schemas.form import CreateForm, FormModel, FormModelPublic, UpdateForm, FormWithoutProperties, FormResponseMessagePublic, FormResponseMessageCreate, FormResponseMessageUpdate, UpdateContactLabels, FormPropertyManageModel, TermsAndConditions
-from crud.form import create_form, get_form, update_form, delete_form, get_users_form_menu, create_response, get_response_by_id, get_plain_response, update_response, create_form_response_message, get_messages_by_response_id, update_form_response_message, count_unseen_responses_by_user_id
+from crud.form import create_form, get_form, update_form, delete_form, get_users_form_menu, create_response, get_response_by_id, get_plain_response, update_response, create_form_response_message, get_messages_by_response_id, update_form_response_message, count_unseen_responses_by_user_id, delete_response
 from crud.user import get_user
 from models.form import Form
 from uuid import UUID
