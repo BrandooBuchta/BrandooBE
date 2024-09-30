@@ -242,10 +242,10 @@ def get_root_content_endpoint(content_id: UUID, request: Request, db: Session = 
 
     request_origin = request.headers.get("origin")
     
-    # print(f"Request origin: {request_origin}, User web_url: {user.web_url}, Origins: {origins}")
+    print(f"Request origin: {request_origin}, User web_url: {user.web_url}, Origins: {origins}")
 
-    # if request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
-    #     raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
+    if request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
+        raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
 
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
