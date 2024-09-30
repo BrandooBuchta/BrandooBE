@@ -185,6 +185,19 @@ def create_response(db: Session, form_id: UUID, data: dict):
 
     return {"response_id": new_response.id}
 
+def delete_response(db: Session, response_id: UUID):
+    response = db.query(FormResponse).filter(FormResponse.id == response_id).first()
+
+    if not response:
+        return None
+
+    db.query(FormValue).filter(FormValue.response_id == response_id).delete()
+
+    db.delete(response)
+    db.commit()
+
+    return response
+
 def get_plain_response(db: Session, response_id):
     response = db.query(FormResponse).filter(FormResponse.id == response_id).first()
 

@@ -149,6 +149,24 @@ async def create_form_response(form_id: UUID, request: Request, db: Session = De
     except OperationalError as e:
         raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
     
+@router.delete("/delete-response/{response_id}")
+def delete_form_response(response_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    try:
+        db_response, status = get_plain_response(db, response_id)
+        if status == 404:
+            raise HTTPException(status_code=404, detail="Response not found")
+
+        if not verify_token(db, db_response.user_id, token):
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
+        deleted_response = delete_response(db, response_id)
+        if not deleted_response:
+            raise HTTPException(status_code=404, detail="Response not found")
+
+        return {"message": "Response deleted successfully"}
+    except OperationalError as e:
+        raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
+
 @router.get("/get-response/{response_id}")
 def get_form_response(response_id: UUID, request: Request, db: Session = Depends(get_db)):
     try:
