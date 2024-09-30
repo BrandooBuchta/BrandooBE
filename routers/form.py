@@ -325,10 +325,11 @@ def get_users_forms_table(
             form_property = next((prop for prop in forms[0].properties if prop.key == key), None)
             if form_property:
                 label = form_property.label
+                property_type = form_property.property_type
             else:
                 label = key  # Fallback to the key if no matching property is found
             
-            header.append({"key": key, "label": label, "position": idx + 1, "property_type": form_property.property_type})
+            header.append({"key": key, "label": label, "position": idx + 1, "property_type": property_type})
 
         # Add headers for labels, seen, and created_at
         header += [
