@@ -12,11 +12,11 @@ from utils.security import decrypt_private_key_via_password, encrypt_private_key
 import uuid
 from cryptography.hazmat.primitives import serialization
 
-def create_code_for_new_user(db: Session):
+def create_code_for_new_user(db: Session, months_of_activity: str):
     code = str(uuid.uuid4().int)[:6]
     db_code = Code(
         id=uuid.uuid4(),
-        type="create-user",
+        type=months_of_activity,
         code=code,
         user_id=uuid.uuid4()
     )
@@ -38,11 +38,20 @@ def create_user(db: Session, user: UserCreate):
     if not db_code:
         return None, 404
 
+    current_time = datetime.now(tz=timezone.utc)
+    try:
+        months_of_activity = int(user.type)
+        is_active_until = current_time + timedelta(days=30 * months_of_activity)
+    except ValueError:
+        is_active_until = current_time
+
     db_user = User(
         id=db_code.user_id,
         name=user.name,
         email=user.email,
         password=get_password_hash(user.password),
+        is_active=True,
+        is_active_until=is_active_until,
         type=user.type,
         web_url=user.web_url,
         encrypted_private_key=encrypt_private_key_via_password(private_key, user.password),
@@ -88,7 +97,7 @@ def delete_unverified_users(db: Session):
     
     for user in db_users:
         send_delete_user_email(user.email)
-        db.delete(user)
+        user.is_active = False
     
     db.commit()
 

@@ -49,6 +49,32 @@ def send_verification_email(email: str, code: str):
     )
     send_email(subject, email, body)
 
+def send_free_subscription_on_month_email(email: str, code: str):
+    subject = "Brandoo na měsíc zdarma!"
+    body = getEmailHtml(
+        'Vítejte, zde je váš unikátní kód pro váš bezstarostný měsíc zdarma.', 
+        'Pokud byste měli problém s napojením na váš web, kontaktujte nás na info@brandoo.cz',
+        code
+    )
+    send_email(subject, email, body)
+
+def send_free_subscription_on_three_month_email(email: str, code: str):
+    subject = "Brandoo na tři měsíce zdarma!"
+    body = getEmailHtml(
+        'Vítejte, zde je váš unikátní kód pro váš bezstarostný měsíc zdarma.', 
+        'Jakmile bude vaše stránka hotová, napojíme vám na jí na Brandoo za již slíbenou jednu korunu.',
+        code
+    )
+    send_email(subject, email, body)
+
+def thank_you_email(email: str, code: str):
+    subject = "Brandoo na tři měsíce zdarma!"
+    body = getEmailHtml(
+        'Vítejte, zde je váš unikátní kód pro váš bezstarostný měsíc zdarma.', 
+        'Jakmile bude vaše stránka hotová, napojíme vám na ní na Brandoo za již slíbenou jednu korunu.',
+    )
+    send_email(subject, email, body)
+
 def send_reset_email(email: str, code: str):
     subject = "Brandoo - Změna hesla"
     body = getEmailHtml(

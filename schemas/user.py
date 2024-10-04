@@ -30,6 +30,8 @@ class User(BaseModel):
     name: str
     email: EmailStr
     is_verified: bool
+    is_active: bool
+    is_active_until: datetime
     type: str
     web_url: str
     created_at: datetime
@@ -48,6 +50,8 @@ class UserResponse(BaseModel):
     name: str
     email: EmailStr
     is_verified: bool
+    is_active: bool
+    is_active_until: datetime
     type: str
     web_url: str
     created_at: datetime
