@@ -84,8 +84,12 @@ class UpdateContactLabels(BaseModel):
     labels: List[str]
 
 class TermsAndConditions(BaseModel):
-  registration_no: str
-  contact_email: str
-  contact_phone: str
-  form_properties: List[str] = []
+    registration_no: str
+    contact_email: str
+    contact_phone: str
+    form_properties: List[str] = []
 
+class PublicOptions(BaseModel):
+    property_name: str
+    form_name: str
+    options: List[str]

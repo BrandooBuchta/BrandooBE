@@ -53,6 +53,14 @@ def get_form(db: Session, form_id: UUID):
 
     return form
 
+def get_property(db: Session, property_id: UUID):
+    prop = db.query(FormProperty).filter(FormProperty.id == property_id).first()
+
+    if not prop:
+        return None, 404
+
+    return prop, 200
+
 def update_form(db: Session, form_id: UUID, update_data: UpdateForm):
     form = db.query(Form).filter(Form.id == form_id).first()
 

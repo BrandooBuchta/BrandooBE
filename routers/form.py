@@ -7,8 +7,8 @@ from sqlalchemy import desc
 from database import SessionLocal
 from utils.security import verify_token, rsa_decrypt_data, decrypt_private_key_for_fe
 from fastapi.security import OAuth2PasswordBearer
-from schemas.form import CreateForm, FormModel, FormModelPublic, UpdateForm, FormWithoutProperties, FormResponseMessagePublic, FormResponseMessageCreate, FormResponseMessageUpdate, UpdateContactLabels, FormPropertyManageModel, TermsAndConditions
-from crud.form import create_form, get_form, update_form, delete_form, get_users_form_menu, create_response, get_response_by_id, get_plain_response, update_response, create_form_response_message, get_messages_by_response_id, update_form_response_message, count_unseen_responses_by_user_id, delete_response
+from schemas.form import CreateForm, FormModel, FormModelPublic, UpdateForm, FormWithoutProperties, FormResponseMessagePublic, FormResponseMessageCreate, FormResponseMessageUpdate, UpdateContactLabels, FormPropertyManageModel, TermsAndConditions, PublicOptions
+from crud.form import create_form, get_form, update_form, delete_form, get_users_form_menu, create_response, get_response_by_id, get_plain_response, update_response, create_form_response_message, get_messages_by_response_id, update_form_response_message, count_unseen_responses_by_user_id, delete_response, get_property
 from crud.user import get_user
 from models.form import Form
 from uuid import UUID
@@ -149,6 +149,21 @@ async def create_form_response(form_id: UUID, request: Request, db: Session = De
     except OperationalError as e:
         raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
     
+@router.get("/property/options/{property_id}", response_model=PublicOptions)
+async def create_form_response(property_id: UUID, request: Request, db: Session = Depends(get_db)):
+    prop, status = get_property(db, property_id)
+    form = get_form(db, prop.form_id)
+
+    request_origin = request.headers.get("origin")
+    if request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
+        raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
+    
+    return PublicOptions(
+        options=prop.options,
+        property_name=prop.label,
+        form_name=form.name
+    )
+
 @router.delete("/delete-response/{response_id}")
 def delete_form_response(response_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
@@ -311,13 +326,15 @@ def get_users_forms_table(
             for response in responses:
                 decrypted_response = get_response_by_id(db, response.id, decrypt_private_key_for_fe(private_key))
 
-                # Finding common keys among all forms' responses
-                if common_keys is None:
-                    common_keys = set(decrypted_response.keys())
-                else:
-                    common_keys.intersection_update(decrypted_response.keys())
+                # Filter responses based on search_query
+                if not search_query or any(search_query.lower() in str(value).lower() for value in decrypted_response.values()):
+                    # Finding common keys among all forms' responses
+                    if common_keys is None:
+                        common_keys = set(decrypted_response.keys())
+                    else:
+                        common_keys.intersection_update(decrypted_response.keys())
 
-                all_responses.append((response, decrypted_response))
+                    all_responses.append((response, decrypted_response))
 
         if common_keys is None:
             common_keys = set()
@@ -524,3 +541,4 @@ def count_unseen_responses_user(form_id: UUID, db: Session = Depends(get_db)):
         registration_no=user.registration_no,
         form_properties=props
     )
+
