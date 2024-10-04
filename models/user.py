@@ -15,7 +15,9 @@ class User(Base):
     password = Column(String, nullable=False)
     type = Column(String, nullable=False)
     web_url = Column(String, nullable=False)
-    is_verified = Column(Boolean, default=False)
+    is_verified = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=False)
+    is_active_until = Column(DateTime(timezone=True), nullable=False)
     encrypted_private_key = Column(String, nullable=False)
     public_key = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -23,7 +25,7 @@ class User(Base):
     contact_email = Column(String, nullable=True)
     contact_phone = Column(String, nullable=True)
     registration_no = Column(String, nullable=True)
-
+    
 class Token(Base):
     __tablename__ = "tokens"
 
