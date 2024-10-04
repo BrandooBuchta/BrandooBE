@@ -28,8 +28,8 @@ def verify_user_via_token(db: Session, user_id: UUID, token: str):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 @router.post("/create-code-for-new-user")
-def post_code_for_new_user(db: Session = Depends(get_db)):
-    code = create_code_for_new_user(db)
+def post_code_for_new_user(db: Session = Depends(get_db), months_of_activity: str = Query(None)):
+    code = create_code_for_new_user(db, months_of_activity)
     return code
 
 @router.post("/create")

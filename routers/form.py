@@ -6,10 +6,11 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy import desc
 from database import SessionLocal
 from utils.security import verify_token, rsa_decrypt_data, decrypt_private_key_for_fe
+from utils.email import send_free_subscription_on_month_email, send_free_subscription_on_three_month_email
 from fastapi.security import OAuth2PasswordBearer
 from schemas.form import CreateForm, FormModel, FormModelPublic, UpdateForm, FormWithoutProperties, FormResponseMessagePublic, FormResponseMessageCreate, FormResponseMessageUpdate, UpdateContactLabels, FormPropertyManageModel, TermsAndConditions, PublicOptions
 from crud.form import create_form, get_form, update_form, delete_form, get_users_form_menu, create_response, get_response_by_id, get_plain_response, update_response, create_form_response_message, get_messages_by_response_id, update_form_response_message, count_unseen_responses_by_user_id, delete_response, get_property
-from crud.user import get_user
+from crud.user import get_user, create_code_for_new_user
 from models.form import Form
 from uuid import UUID
 from typing import List, Optional
@@ -143,6 +144,13 @@ async def create_form_response(form_id: UUID, request: Request, db: Session = De
     try:
         data = await request.json()
         create_response(db, form_id, data)
+
+        if form_id == "2aa1a8f2-a82d-4d8f-94b4-dd97abce4981":
+            send_free_subscription_on_month_email(data.email, create_code_for_new_user(db, "1"))
+
+        if form_id == "5893c160-908e-4f3e-ab51-5a574aa5da70":
+            send_free_subscription_on_three_month_email(data.email, create_code_for_new_user(db, "3"))
+
         return {"message": "Successfully created a response"}
     except HTTPException as e:
         raise e
