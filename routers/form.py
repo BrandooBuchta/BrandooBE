@@ -145,18 +145,18 @@ async def create_form_response(form_id: UUID, request: Request, db: Session = De
         data = await request.json()
         create_response(db, form_id, data)
 
-        if form_id == "2aa1a8f2-a82d-4d8f-94b4-dd97abce4981":
-            send_free_subscription_on_month_email(data.email, create_code_for_new_user(db, "1"))
+        if str(form_id) == "2aa1a8f2-a82d-4d8f-94b4-dd97abce4981":
+            send_free_subscription_on_month_email(data['email'], create_code_for_new_user(db, "1"))
 
-        if form_id == "5893c160-908e-4f3e-ab51-5a574aa5da70":
-            send_free_subscription_on_three_month_email(data.email, create_code_for_new_user(db, "3"))
+        if str(form_id) == "5893c160-908e-4f3e-ab51-5a574aa5da70":
+            send_free_subscription_on_three_month_email(data['email'], create_code_for_new_user(db, "3"))
 
         return {"message": "Successfully created a response"}
     except HTTPException as e:
         raise e
     except OperationalError as e:
         raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
-    
+
 @router.get("/property/options/{property_id}", response_model=PublicOptions)
 async def create_form_response(property_id: UUID, request: Request, db: Session = Depends(get_db)):
     prop, status = get_property(db, property_id)
