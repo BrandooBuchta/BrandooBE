@@ -33,7 +33,7 @@ origins = [
 
 router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 async def get_optional_token(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[str]:
     return token
@@ -139,18 +139,16 @@ def get_users_forms_menu(user_id: UUID, token: str = Depends(oauth2_scheme), db:
 async def create_form_response(
     form_id: UUID, 
     request: Request, 
-    token: Optional[str] = Depends(get_optional_token),  # Token is optional
+    token: Optional[str] = Depends(get_optional_token),
     db: Session = Depends(get_db)
 ):
     form = get_form(db, form_id)
     user = get_user(db, form.user_id)
 
-    # Log origin and token for debugging
     request_origin = request.headers.get("origin")
     print(f"Request Origin: {request_origin}")
     print(f"Token: {token}")
 
-    # If the request is from localhost, require token verification
     if request_origin and "localhost" in request_origin:
         if not token:
             print("No token provided for localhost")
@@ -158,19 +156,16 @@ async def create_form_response(
             print(f"Failed token verification for localhost with token: {token}")
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
     
-    # If the request is from an unauthorized origin, block the request
     elif request_origin not in [
         "http://localhost", "http://localhost:3000", "http://localhost:3001", 
         "https://www.brandoo.cz", "https://app.brandoo.cz", "https://api.brandoo.cz"
     ]:
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
 
-    # Continue with processing the request if no issues
     try:
         data = await request.json()
         create_response(db, form_id, data)
 
-        # Custom logic for sending emails based on form_id
         if str(form_id) == "2aa1a8f2-a82d-4d8f-94b4-dd97abce4981":
             send_free_subscription_on_month_email(data['email'], "1")
 
