@@ -133,39 +133,47 @@ def get_users_forms_menu(user_id: UUID, token: str = Depends(oauth2_scheme), db:
     return forms
 
 @router.post("/create-response/{form_id}")
-async def create_form_response(form_id: UUID, request: Request, db: Session = Depends(get_db)):
+async def create_form_response(form_id: UUID, request: Request, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     form = get_form(db, form_id)
     user = get_user(db, form.user_id)
 
     request_origin = request.headers.get("origin")
-    if request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
+    if request_origin and "localhost" in request_origin:
+        if not verify_token(db, user.id, token):
+            raise HTTPException(status_code=401, detail="Unauthorized for localhost")
+
+    elif request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
 
     try:
         data = await request.json()
         create_response(db, form_id, data)
 
-        if form_id == "2aa1a8f2-a82d-4d8f-94b4-dd97abce4981":
-            send_free_subscription_on_month_email(data.email, create_code_for_new_user(db, "1"))
+        if str(form_id) == "2aa1a8f2-a82d-4d8f-94b4-dd97abce4981":
+            send_free_subscription_on_month_email(data['email'], create_code_for_new_user(db, "1"))
 
-        if form_id == "5893c160-908e-4f3e-ab51-5a574aa5da70":
-            send_free_subscription_on_three_month_email(data.email, create_code_for_new_user(db, "3"))
+        if str(form_id) == "5893c160-908e-4f3e-ab51-5a574aa5da70":
+            send_free_subscription_on_three_month_email(data['email'], create_code_for_new_user(db, "3"))
 
         return {"message": "Successfully created a response"}
     except HTTPException as e:
         raise e
     except OperationalError as e:
         raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
-    
+
 @router.get("/property/options/{property_id}", response_model=PublicOptions)
-async def create_form_response(property_id: UUID, request: Request, db: Session = Depends(get_db)):
+async def create_form_response(property_id: UUID, request: Request, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     prop, status = get_property(db, property_id)
     form = get_form(db, prop.form_id)
 
     request_origin = request.headers.get("origin")
-    if request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
+    if request_origin and "localhost" in request_origin:
+        if not verify_token(db, user.id, token):
+            raise HTTPException(status_code=401, detail="Unauthorized for localhost")
+
+    elif request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
-    
+
     return PublicOptions(
         options=prop.options,
         property_name=prop.label,

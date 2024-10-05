@@ -91,7 +91,7 @@ def modify_statistic(statistic_id: UUID, statistic: StatisticUpdate, token: str 
     return updated_statistic
 
 @router.post("/value/{statistic_id}", response_model=StatisticValueSchema)
-def add_statistic_value(statistic_id: UUID, request: Request, value: StatisticValueCreate, db: Session = Depends(get_db)):
+def add_statistic_value(statistic_id: UUID, request: Request, value: StatisticValueCreate, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     statistic_type = get_statistic_type(db, statistic_id)
     if not statistic_type:
         raise HTTPException(status_code=404, detail="Statistic not found")
@@ -105,7 +105,11 @@ def add_statistic_value(statistic_id: UUID, request: Request, value: StatisticVa
         raise HTTPException(status_code=404, detail="User not found")
     
     request_origin = request.headers.get("origin")
-    if request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
+    if request_origin and "localhost" in request_origin:
+        if not verify_token(db, user.id, token):
+            raise HTTPException(status_code=401, detail="Unauthorized for localhost")
+
+    elif request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
 
     if statistic_type == "number" and value.number is not None:
