@@ -7,7 +7,7 @@ from typing import Optional
 
 def getEmailHtml(title: str, subtitle: str, code: str = None):
     code_html = f"<strong style='font-size: 32px; color: white; padding: 20px 0px;'>{code}</strong>" if code else ""
-    logo_url = "https://www.brandoo.cz/brandoo-logo-white.png"  # Zadejte cestu k vašemu logu
+    logo_url = "https://www.brandoo.cz/brandoo-logo-white.png"
     
     return f"""
             <div style="text-align: center; background: #006fee; padding: 20px;">
