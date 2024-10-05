@@ -61,17 +61,17 @@ def send_free_subscription_on_month_email(email: str, code: str):
 def send_free_subscription_on_three_month_email(email: str, code: str):
     subject = "Brandoo na tři měsíce zdarma!"
     body = getEmailHtml(
-        'Vítejte, zde je váš unikátní kód pro váš bezstarostný měsíc zdarma.', 
-        'Jakmile bude vaše stránka hotová, napojíme vám na jí na Brandoo za již slíbenou jednu korunu.',
+        'Vítejte, zde je váš unikátní kód pro vaše bezstarostné tři měsíc ezdarma.', 
+        'Jakmile bude vaše stránka hotová, napojíme vám na ní na Brandoo za již slíbenou jednu korunu.',
         code
     )
     send_email(subject, email, body)
 
-def thank_you_email(email: str, code: str):
-    subject = "Brandoo na tři měsíce zdarma!"
+def send_form_for_our_services(email: str):
+    subject = "Brandoo Enterprises - Děkujeme že v nás vkládáte důvěru!"
     body = getEmailHtml(
-        'Vítejte, zde je váš unikátní kód pro váš bezstarostný měsíc zdarma.', 
-        'Jakmile bude vaše stránka hotová, napojíme vám na ní na Brandoo za již slíbenou jednu korunu.',
+        'Tady je odkaz na formulář, pomocí kterého lépe určíme co potřebujete a co vám my můžeme nabídnout abychom maximalizovali vaše výdělky.', 
+        '<a href="https://www.brandoo.cz/form/b4766a43-bbe5-4ba2-86f3-13cc6e28d96c" target="_blank" style="color: white; font-weight: bold;">Klikni zde pro přesměrování na formulář!</a>',
     )
     send_email(subject, email, body)
 
