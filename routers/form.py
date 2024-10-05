@@ -173,13 +173,18 @@ async def create_form_response(
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 @router.get("/property/options/{property_id}", response_model=PublicOptions)
-async def create_form_response(property_id: UUID, request: Request, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+async def create_form_response(
+    property_id: UUID, 
+    request: Request, 
+    token: Optional[str] = Depends(get_optional_token),
+    db: Session = Depends(get_db)
+):
     prop, status = get_property(db, property_id)
     form = get_form(db, prop.form_id)
 
     request_origin = request.headers.get("origin")
     if request_origin and "localhost" in request_origin:
-        if not verify_token(db, user.id, token):
+        if not verify_token(db, form.user_id, token):
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
 
     elif request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":

@@ -24,7 +24,7 @@ from crud.cms import (
 )
 from schemas.cms import RootContentLight, ContentUpdate, BaseContent, ContentWithProperties, ReorderRequest
 from fastapi import Query
-from typing import List
+from typing import List, Optional
 from crud.user import get_user
 from fastapi import HTTPException
 
@@ -34,6 +34,8 @@ router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+async def get_optional_token(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[str]:
+    return token
 
 origins = [
     "http://localhost",
@@ -235,17 +237,20 @@ def reorder_list_item_content(content_id: UUID, request: ReorderRequest, token: 
         raise HTTPException(status_code=500, detail="Failed to reorder list item content")
 
 @router.get("/{content_id}/public")
-def get_root_content_endpoint(content_id: UUID, request: Request, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def get_root_content_endpoint(content_id: UUID, request: Request, token: Optional[str] = Depends(get_optional_token), db: Session = Depends(get_db)):
     content = get_root_public_content(db, content_id)
     raw_content = get_content(db, content_id)
     user = get_user(db, raw_content.user_id)
 
     request_origin = request.headers.get("origin")
     if request_origin and "localhost" in request_origin:
-        if not verify_token(db, user.id, token):
+        if not token or not verify_token(db, user.id, token):
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
-
-    elif request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
+    
+    elif request_origin not in [
+        "http://localhost", "http://localhost:3000", "http://localhost:3001", 
+        "https://www.brandoo.cz", "https://app.brandoo.cz", "https://api.brandoo.cz"
+    ]:
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
 
     if not content:
