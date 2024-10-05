@@ -9,7 +9,7 @@ from uuid import UUID
 from fastapi.security import OAuth2PasswordBearer
 from models.statistics import Statistic, StatisticValue
 from models.user import User
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timedelta
 
 origins = [
@@ -30,6 +30,9 @@ def get_user(db: Session, user_id: UUID):
 router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+async def get_optional_token(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[str]:
+    return token
 
 def get_db():
     db = SessionLocal()
@@ -91,7 +94,13 @@ def modify_statistic(statistic_id: UUID, statistic: StatisticUpdate, token: str 
     return updated_statistic
 
 @router.post("/value/{statistic_id}", response_model=StatisticValueSchema)
-def add_statistic_value(statistic_id: UUID, request: Request, value: StatisticValueCreate, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def add_statistic_value(
+    statistic_id: UUID, 
+    request: Request, 
+    value: StatisticValueCreate, 
+    token: Optional[str] = Depends(get_optional_token),
+    db: Session = Depends(get_db)
+):
     statistic_type = get_statistic_type(db, statistic_id)
     if not statistic_type:
         raise HTTPException(status_code=404, detail="Statistic not found")
@@ -106,7 +115,7 @@ def add_statistic_value(statistic_id: UUID, request: Request, value: StatisticVa
     
     request_origin = request.headers.get("origin")
     if request_origin and "localhost" in request_origin:
-        if not verify_token(db, user.id, token):
+        if not verify_token(db, form.user_id, token):
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
 
     elif request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
