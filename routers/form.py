@@ -33,7 +33,7 @@ origins = [
 
 router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 async def get_optional_token(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[str]:
     return token
@@ -146,14 +146,9 @@ async def create_form_response(
     user = get_user(db, form.user_id)
 
     request_origin = request.headers.get("origin")
-    print(f"Request Origin: {request_origin}")
-    print(f"Token: {token}")
 
     if request_origin and "localhost" in request_origin:
-        if not token:
-            print("No token provided for localhost")
         if not token or not verify_token(db, user.id, token):
-            print(f"Failed token verification for localhost with token: {token}")
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
     
     elif request_origin not in [
