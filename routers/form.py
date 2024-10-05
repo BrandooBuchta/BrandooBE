@@ -133,7 +133,7 @@ def get_users_forms_menu(user_id: UUID, token: str = Depends(oauth2_scheme), db:
     return forms
 
 @router.post("/create-response/{form_id}")
-async def create_form_response(form_id: UUID, request: Request, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+async def create_form_response(form_id: UUID, request: Request, token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     form = get_form(db, form_id)
     user = get_user(db, form.user_id)
 
