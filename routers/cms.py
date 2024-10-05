@@ -235,16 +235,17 @@ def reorder_list_item_content(content_id: UUID, request: ReorderRequest, token: 
         raise HTTPException(status_code=500, detail="Failed to reorder list item content")
 
 @router.get("/{content_id}/public")
-def get_root_content_endpoint(content_id: UUID, request: Request, db: Session = Depends(get_db)):
+def get_root_content_endpoint(content_id: UUID, request: Request, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     content = get_root_public_content(db, content_id)
     raw_content = get_content(db, content_id)
     user = get_user(db, raw_content.user_id)
 
     request_origin = request.headers.get("origin")
-    
-    print(f"Request origin: {request_origin}, User web_url: {user.web_url}, Origins: {origins}")
+    if request_origin and "localhost" in request_origin:
+        if not verify_token(db, user.id, token):
+            raise HTTPException(status_code=401, detail="Unauthorized for localhost")
 
-    if request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
+    elif request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
 
     if not content:

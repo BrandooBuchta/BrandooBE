@@ -31,7 +31,7 @@ class User(BaseModel):
     email: EmailStr
     is_verified: bool
     is_active: bool
-    is_active_until: datetime
+    is_active_until: Optional[datetime] = None
     type: str
     web_url: str
     created_at: datetime
@@ -51,7 +51,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     is_verified: bool
     is_active: bool
-    is_active_until: datetime
+    is_active_until: Optional[datetime] = None
     type: str
     web_url: str
     created_at: datetime
