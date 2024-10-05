@@ -7,13 +7,14 @@ from typing import Optional
 
 def getEmailHtml(title: str, subtitle: str, code: str = None):
     code_html = f"<strong style='font-size: 32px; color: white; padding: 20px 0px;'>{code}</strong>" if code else ""
+    logo_url = "https://www.brandoo.cz/brandoo-logo-white.png"
     
     return f"""
             <div style="text-align: center; background: #006fee; padding: 20px;">
+                <img src="{logo_url}" alt="Logo" style="width: 150px; height: auto; margin-bottom: 20px;" />
                 <h1 style="font-size: 24px; margin: 0; color: white;">{title}</h1>
                 <p style="margin: 5px 0; color: white;">{subtitle}</p>
                 {code_html}
-                <div style="color: white;">{'no logo yet :P'}</div>
             </div>
         """
 
