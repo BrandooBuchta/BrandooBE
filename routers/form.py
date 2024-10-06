@@ -173,7 +173,7 @@ async def create_form_response(
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 @router.get("/property/options/{property_id}", response_model=PublicOptions)
-async def create_form_response(
+async def get_form_property_options(
     property_id: UUID, 
     request: Request, 
     token: Optional[str] = Depends(get_optional_token),

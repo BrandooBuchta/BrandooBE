@@ -15,6 +15,7 @@ import os
 import uuid
 from dotenv import load_dotenv
 from tenacity import retry, wait_fixed, stop_after_attempt
+import re
 
 from database import SessionLocal, engine, Base
 from models.user import User, Code
@@ -69,14 +70,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+public_endpoints_regex = [
+    re.compile(r"^/api/forms/create-response/\w+$"),
+    re.compile(r"^/api/forms/property/options/\w+$"),
+    re.compile(r"^/api/statistics/value/\w+$"),
+    re.compile(r"^/api/contents/\w+/public$")
+]
+
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        if request.url.path.startswith("/api/contacts/new-contact") or request.url.path.startswith("/api/statistics/value"):
+        # Check if the request path matches any of the public endpoint patterns
+        if any(regex.match(request.url.path) for regex in public_endpoints_regex):
+            # Allow all origins for public endpoints
+            response = await call_next(request)
             response.headers["Access-Control-Allow-Origin"] = "*"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
             response.headers["Access-Control-Allow-Headers"] = "*"
-        return response
+            return response
+        
+        # For non-public endpoints, proceed normally
+        return await call_next(request)
 
 app.add_middleware(CustomCORSMiddleware)
 
