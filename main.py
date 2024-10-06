@@ -72,23 +72,46 @@ public_endpoints_regex = [
 
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Check if the request path matches any of the public endpoint patterns
         if any(regex.match(request.url.path) for regex in public_endpoints_regex):
+            # Handle OPTIONS preflight request
+            if request.method == "OPTIONS":
+                response = JSONResponse(status_code=200, content="CORS preflight")
+                response.headers["Access-Control-Allow-Origin"] = "*"
+                response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
+                response.headers["Access-Control-Allow-Headers"] = "*"
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                return response
+
+            # Skip CORS for public endpoints and allow them to be called from any origin
             response = await call_next(request)
             response.headers["Access-Control-Allow-Origin"] = "*"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
             response.headers["Access-Control-Allow-Headers"] = "*"
-            response.headers["Access-Control-Allow-Credentials"] = "true"  # Allow credentials like cookies
+            response.headers["Access-Control-Allow-Credentials"] = "true"
             return response
         
+        # For non-public endpoints, apply standard CORS check based on origins
         origin = request.headers.get("origin")
         if origin in origins:
+            # Handle OPTIONS preflight request
+            if request.method == "OPTIONS":
+                response = JSONResponse(status_code=200, content="CORS preflight")
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
+                response.headers["Access-Control-Allow-Headers"] = "*"
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                return response
+
+            # Continue with normal request processing
             response = await call_next(request)
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
             response.headers["Access-Control-Allow-Headers"] = "*"
-            response.headers["Access-Control-Allow-Credentials"] = "true"  # Allow credentials like cookies
+            response.headers["Access-Control-Allow-Credentials"] = "true"
             return response
         else:
+            # If the origin is not allowed, return CORS error
             return JSONResponse(status_code=403, content={"detail": "CORS policy does not allow access from this origin."})
 
 app.add_middleware(CustomCORSMiddleware)
