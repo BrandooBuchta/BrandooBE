@@ -69,13 +69,16 @@ public_endpoints_regex = [
     re.compile(r"^/api/statistics/value/\w+$"),
     re.compile(r"^/api/contents/\w+/public$")
 ]
-
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Get request path and origin
         request_path = request.url.path
         origin = request.headers.get("origin")
         method = request.method
+
+        # Debugging output to trace where the issue might be
+        if origin is None:
+            origin = "None"
 
         # 1. Allow access to Swagger UI (/docs) and root (/) without CORS check
         if request_path.startswith("/docs") or request_path.startswith("/openapi.json") or request_path == "/":
@@ -88,9 +91,8 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
 
         # 2. Check if the request path matches any of the public endpoint patterns
         if any(regex.match(request_path) for regex in public_endpoints_regex):
-            # Allow public endpoints to be called from any origin, skip CORS check
+            # Public endpoint: Allow any origin
             if method == "OPTIONS":
-                # Respond to preflight request for public endpoints
                 response = JSONResponse(status_code=200, content={"detail": f"CORS preflight for public endpoint: {request_path}"})
                 response.headers["Access-Control-Allow-Origin"] = "*"
                 response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
@@ -98,7 +100,7 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
                 response.headers["Access-Control-Allow-Credentials"] = "true"
                 return response
 
-            # Continue to the public endpoint
+            # Allow public endpoints to be called from any origin
             response = await call_next(request)
             response.headers["Access-Control-Allow-Origin"] = "*"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
@@ -125,8 +127,19 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
             response.headers["Access-Control-Allow-Credentials"] = "true"
             return response
         else:
-            # If the origin is not allowed, return CORS error
-            return JSONResponse(status_code=403, content={"detail": f"CORS Error: Origin '{origin}' not allowed for endpoint '{request_path}'"})
+            # If the origin is not allowed, return CORS error with more details for debugging
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "detail": f"CORS Error: Origin '{origin}' not allowed for endpoint '{request_path}'",
+                    "debug": {
+                        "method": method,
+                        "origin": origin,
+                        "allowed_origins": origins,
+                        "endpoint": request_path
+                    }
+                }
+            )
 
 app.add_middleware(CustomCORSMiddleware)
 
