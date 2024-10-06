@@ -162,7 +162,7 @@ async def create_form_response(
         create_response(db, form_id, data)
 
         if str(form_id) == "2aa1a8f2-a82d-4d8f-94b4-dd97abce4981":
-            send_free_subscription_on_month_email(data['email'], "1")
+            send_free_subscription_on_month_email(data['email'], create_code_for_new_user(db, "1"))
 
         if str(form_id) == "5893c160-908e-4f3e-ab51-5a574aa5da70":
             send_form_for_our_services(data['email'])
