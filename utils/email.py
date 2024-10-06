@@ -13,7 +13,7 @@ def getEmailHtml(title: str, subtitle: str, code: str = None):
             <div style="text-align: center; background: #006fee; padding: 20px;">
                 <h1 style="font-size: 24px; margin: 0; color: white;">{title}</h1>
                 <p style="margin: 5px 0; color: white;">{subtitle}</p>
-                {code_html}
+                <p style="margin: 5px 0; color: white;">{code_html}</p>
                 <img src="{logo_url}" alt="Logo" style="width: 150px; height: auto; margin-bottom: 20px;" />
             </div>
         """
