@@ -77,6 +77,13 @@ public_endpoints_regex = [
     re.compile(r"^/api/contents/\w+/public$")
 ]
 
+test_path = "/api/statistics/value/0b22e56f-25dd-4794-b349-a62d3224cb1e"
+
+if any(regex.match(test_path) for regex in public_endpoints_regex):
+    print("Matched a public endpoint")
+else:
+    print("Did not match any public endpoint")
+
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Check if the request path matches any of the public endpoint patterns
