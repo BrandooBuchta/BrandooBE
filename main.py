@@ -79,17 +79,15 @@ public_endpoints_regex = [
 
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # Check if the request path matches any of the public endpoint patterns
         if any(regex.match(request.url.path) for regex in public_endpoints_regex):
-            # Allow all origins for public endpoints
             response = await call_next(request)
-            response.headers["Access-Control-Allow-Origin"] = "*"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
-            response.headers["Access-Control-Allow-Headers"] = "*"
             return response
         
-        # For non-public endpoints, proceed normally
-        return await call_next(request)
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
         
 app.add_middleware(CustomCORSMiddleware)
 
