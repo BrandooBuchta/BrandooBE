@@ -1,6 +1,5 @@
 import logging
 from fastapi import FastAPI, Request, APIRouter, File, UploadFile, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -51,6 +50,7 @@ app = FastAPI(
     title="Brandoo API"
 )
 
+# Origins for private endpoints
 origins = [
     "http://localhost",
     "http://localhost:3000",
@@ -62,14 +62,7 @@ origins = [
     "https://dev.app.brandoo.cz",
 ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# Public endpoints regex patterns
 public_endpoints_regex = [
     re.compile(r"^/api/forms/create-response/\w+$"),
     re.compile(r"^/api/forms/property/options/\w+$"),
@@ -79,21 +72,27 @@ public_endpoints_regex = [
 
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # Check if the request path matches any of the public endpoint patterns
         if any(regex.match(request.url.path) for regex in public_endpoints_regex):
-            # Allow all origins for public endpoints
             response = await call_next(request)
             response.headers["Access-Control-Allow-Origin"] = "*"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
             response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Allow-Credentials"] = "true"  # Allow credentials like cookies
             return response
         
-        # For non-public endpoints, proceed normally
-        return await call_next(request)
-        
+        origin = request.headers.get("origin")
+        if origin in origins:
+            response = await call_next(request)
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Allow-Credentials"] = "true"  # Allow credentials like cookies
+            return response
+        else:
+            return JSONResponse(status_code=403, content={"detail": "CORS policy does not allow access from this origin."})
+
 app.add_middleware(CustomCORSMiddleware)
 
-# Middleware to log requests and responses
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     logger.info(f"Request: {request.method} {request.url}")
@@ -207,7 +206,6 @@ async def delete_file(file_name: str, user_id: str = Query(None)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File deletion failed: {str(e)}")
 
-
 # Endpoint to fetch the title of a webpage
 @app.get("/api/get-title")
 async def get_title(url: str):
@@ -231,7 +229,6 @@ async def get_title(url: str):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
