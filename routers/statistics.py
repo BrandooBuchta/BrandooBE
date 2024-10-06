@@ -115,7 +115,7 @@ def add_statistic_value(
     
     request_origin = request.headers.get("origin")
     if request_origin and "localhost" in request_origin:
-        if not verify_token(db, form.user_id, token):
+        if not verify_token(db, user.id, token):
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
 
     elif request_origin not in origins and request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
