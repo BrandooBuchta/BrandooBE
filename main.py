@@ -72,11 +72,19 @@ public_endpoints_regex = [
 
 class CustomCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Custom logging information sent to frontend for easier debugging
+        request_path = request.url.path
+        origin = request.headers.get("origin")
+        method = request.method
+
         # Check if the request path matches any of the public endpoint patterns
-        if any(regex.match(request.url.path) for regex in public_endpoints_regex):
+        if any(regex.match(request_path) for regex in public_endpoints_regex):
             # Handle OPTIONS preflight request
-            if request.method == "OPTIONS":
-                response = JSONResponse(status_code=200, content="CORS preflight")
+            if method == "OPTIONS":
+                response = JSONResponse(
+                    status_code=200, 
+                    content={"detail": f"CORS preflight for public endpoint: {request_path}"}
+                )
                 response.headers["Access-Control-Allow-Origin"] = "*"
                 response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
                 response.headers["Access-Control-Allow-Headers"] = "*"
@@ -89,14 +97,17 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
             response.headers["Access-Control-Allow-Headers"] = "*"
             response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["X-Debug-Message"] = f"Public endpoint accessed: {request_path}"
             return response
-        
+
         # For non-public endpoints, apply standard CORS check based on origins
-        origin = request.headers.get("origin")
         if origin in origins:
             # Handle OPTIONS preflight request
-            if request.method == "OPTIONS":
-                response = JSONResponse(status_code=200, content="CORS preflight")
+            if method == "OPTIONS":
+                response = JSONResponse(
+                    status_code=200, 
+                    content={"detail": f"CORS preflight for private endpoint: {request_path} with origin: {origin}"}
+                )
                 response.headers["Access-Control-Allow-Origin"] = origin
                 response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
                 response.headers["Access-Control-Allow-Headers"] = "*"
@@ -109,10 +120,22 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT"
             response.headers["Access-Control-Allow-Headers"] = "*"
             response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["X-Debug-Message"] = f"Private endpoint accessed: {request_path} with origin: {origin}"
             return response
         else:
-            # If the origin is not allowed, return CORS error
-            return JSONResponse(status_code=403, content={"detail": "CORS policy does not allow access from this origin."})
+            # If the origin is not allowed, return CORS error with detailed message
+            return JSONResponse(
+                status_code=403, 
+                content={
+                    "detail": f"CORS Error: Origin '{origin}' not allowed for endpoint '{request_path}'",
+                    "debug": {
+                        "method": method,
+                        "origin": origin,
+                        "allowed_origins": origins,
+                        "endpoint": request_path
+                    }
+                }
+            )
 
 app.add_middleware(CustomCORSMiddleware)
 
