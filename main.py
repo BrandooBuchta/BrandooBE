@@ -75,45 +75,27 @@ public_endpoints_regex = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins + ["*"],  # '*' will handle cases where any origin is allowed, especially for OPTIONS
+    allow_origins=["*"],  # Allows all origins
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods (GET, POST, OPTIONS, etc.)
+    allow_methods=["*"],  # Allows all methods (GET, POST, PUT, DELETE, etc.)
     allow_headers=["*"],  # Allows all headers
 )
 
-@app.middleware("http")
-async def check_origin_middleware(request: Request, call_next):
-    request_origin = request.headers.get("origin")
-    request_path = str(request.url.path)
+# @app.middleware("http")
+# async def check_origin_middleware(request: Request, call_next):
+#     request_origin = request.headers.get("origin")
+#     request_path = str(request.url.path)
 
-    # Debugging: Zobrazování pro ladění
-    print(f"Request Origin: {request_origin}")
-    print(f"Request Path: {request_path}")
+#     print("request_path:", request_path)
 
-    # 1. Pokud není 'Origin' v hlavičce (None), pokračuj
-    if request_origin is None:
-        response = await call_next(request)
-        return response
+#     if request_origin is None or request_origin in allowed_origins or any(regex.match(request_path) for regex in public_endpoints_regex):
+#         response = await call_next(request)
+#         return response
 
-    # 2. Pokud je 'Origin' v seznamu povolených originů, pokračuj
-    if request_origin in allowed_origins:
-        response = await call_next(request)
-        return response
-
-    # 3. Pokud 'Origin' není v allowed_origins, ale endpoint odpovídá veřejnému regexu, pokračuj
-    if any(regex.match(request_path) for regex in public_endpoints_regex):
-        response = await call_next(request)
-        return response
-
-    # 4. Pokud je to preflight OPTIONS požadavek, automaticky povolit
-    if request.method == "OPTIONS":
-        return JSONResponse(status_code=status.HTTP_200_OK)
-
-    # 5. Pokud žádná podmínka nesedí, vrať 403 Forbidden
-    return JSONResponse(
-        status_code=status.HTTP_403_FORBIDDEN,
-        content={"detail": "Forbidden: Origin not allowed"},
-    )
+#     return JSONResponse(
+#         status_code=status.HTTP_403_FORBIDDEN,
+#         content={"detail": "Forbidden: Origin not allowed"},
+#     )
 
 @app.exception_handler(Exception)
 async def exception_handler(request: Request, exc: Exception):
