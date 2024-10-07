@@ -119,7 +119,7 @@ def add_statistic_value(
         if not verify_token(db, user.id, token):
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
 
-    elif request_origin not in origins or request_origin != f"https://{user.web_url}":
+    elif request_origin not in origins and request_origin != f"https://{user.web_url}":
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
 
     if statistic_type == "number" and value.number is not None:
