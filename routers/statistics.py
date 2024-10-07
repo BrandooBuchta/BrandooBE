@@ -1,5 +1,5 @@
 import random
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Depends
 from sqlalchemy.orm import Session, joinedload
 from database import SessionLocal
 from schemas.statistics import StatisticCreate, StatisticUpdate, StatisticValueCreate, Statistic as StatisticSchema, StatisticValue as StatisticValueSchema
@@ -29,7 +29,7 @@ def get_user(db: Session, user_id: UUID):
 
 router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 async def get_optional_token(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[str]:
     return token
