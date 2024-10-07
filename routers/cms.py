@@ -32,7 +32,7 @@ from uuid import UUID
 
 router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 async def get_optional_token(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[str]:
     return token
@@ -243,14 +243,12 @@ def get_root_content_endpoint(content_id: UUID, request: Request, token: Optiona
     user = get_user(db, raw_content.user_id)
 
     request_origin = request.headers.get("origin")
+
     if request_origin and "localhost" in request_origin:
-        if not token or not verify_token(db, user.id, token):
+        if not verify_token(db, user.id, token):
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
-    
-    elif request_origin not in [
-        "http://localhost", "http://localhost:3000", "http://localhost:3001", 
-        "https://www.brandoo.cz", "https://app.brandoo.cz", "https://api.brandoo.cz"
-    ]:
+
+    elif request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
 
     if not content:
