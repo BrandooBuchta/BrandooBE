@@ -67,10 +67,10 @@ allowed_origins = [
 
 # Public endpoints regex patterns
 public_endpoints_regex = [
-    re.compile(r"^/api/forms/create-response/\w+$"),
-    re.compile(r"^/api/forms/property/options/\w+$"),
-    re.compile(r"^/api/statistics/value/\w+$"),
-    re.compile(r"^/api/contents/\w+/public$")
+    re.compile(r"^/api/forms/create-response/[a-fA-F0-9-]+$"),
+    re.compile(r"^/api/forms/property/options/[a-fA-F0-9-]+$"),
+    re.compile(r"^/api/statistics/value/[a-fA-F0-9-]+$"),
+    re.compile(r"^/api/contents/[a-fA-F0-9-]+/public$")
 ]
 
 app.add_middleware(
