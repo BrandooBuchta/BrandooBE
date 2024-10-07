@@ -81,22 +81,25 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-# @app.middleware("http")
-# async def check_origin_middleware(request: Request, call_next):
-#     request_origin = request.headers.get("origin")
-#     request_path = str(request.url.path)
+@app.middleware("http")
+async def check_origin_middleware(request: Request, call_next):
+    request_origin = request.headers.get("origin")
+    request_path = str(request.url.path)
 
-#     print("request_path:", request_path)
+    print(f"Request path: {request_path}, Request origin: {request_origin}")
 
-#     if request_origin is None or request_origin in allowed_origins or any(regex.match(request_path) for regex in public_endpoints_regex):
-#         response = await call_next(request)
-#         return response
+    if request.method == "OPTIONS":
+        return await call_next(request)
 
-#     return JSONResponse(
-#         status_code=status.HTTP_403_FORBIDDEN,
-#         content={"detail": "Forbidden: Origin not allowed"},
-#     )
+    if request_origin is None or request_origin in allowed_origins or any(regex.match(request_path) for regex in public_endpoints_regex):
+        response = await call_next(request)
+        return response
 
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={"detail": "Forbidden: Origin not allowed"},
+    )
+    
 @app.exception_handler(Exception)
 async def exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {exc}")
