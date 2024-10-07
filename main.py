@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, Request, APIRouter, File, UploadFile, HTTPException, Query
+from fastapi import FastAPI, Request, APIRouter, File, UploadFile, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -84,9 +84,8 @@ app.add_middleware(
 async def check_origin_middleware(request: Request, call_next):
     request_origin = request.headers.get("origin")
     
-    # Check if the request_origin is in the allowed origins
     if request_origin not in origins:
-        # If origin is not allowed, check if the request is for a public endpoint
+
         request_path = str(request.url.path)
         if not any(regex.match(request_path) for regex in public_endpoints_regex):
             return JSONResponse(
