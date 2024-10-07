@@ -178,6 +178,7 @@ async def get_form_property_options(
 ):
     prop, status = get_property(db, property_id)
     form = get_form(db, prop.form_id)
+    user = get_user(db, form.user_id)
 
     request_origin = request.headers.get("origin")
 

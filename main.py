@@ -81,15 +81,22 @@ app.add_middleware(
 )
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
-    logger.info(f"Request: {request.method} {request.url}")
-    try:
+async def check_request(request: Request, call_next):
+    request_path = str(request.url.path)
+    
+    for regex in public_endpoints_regex:
+        if regex.match(request_path):
+            response = await call_next(request)
+            return response
+    
+    request_origin = request.headers.get("origin")
+    
+    if request_origin and request_origin in origins:
         response = await call_next(request)
-        logger.info(f"Response: {response.status_code}")
         return response
-    except Exception as e:
-        logger.error(f"Error processing request: {e}")
-        raise
+    else:
+        return JSONResponse(status_code=403, content={"message": "Forbidden: Origin not allowed"})
+
 
 @app.exception_handler(Exception)
 async def exception_handler(request: Request, exc: Exception):
