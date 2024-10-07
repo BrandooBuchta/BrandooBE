@@ -57,6 +57,7 @@ allowed_origins = [
     "http://localhost",
     "http://localhost:3000",
     "http://localhost:3001",
+    "http://localhost:8000",
     "https://www.brandoo.cz",
     "https://app.brandoo.cz",
     "https://api.brandoo.cz",
@@ -83,16 +84,14 @@ app.add_middleware(
 @app.middleware("http")
 async def check_origin_middleware(request: Request, call_next):
     request_origin = request.headers.get("origin")
-    
-    # Allow all origins for docs and public endpoints
     request_path = str(request.url.path)
-    
-    # If the origin is in allowed_origins or matches public endpoint, allow it
-    if request_origin in allowed_origins or any(regex.match(request_path) for regex in public_endpoints_regex):
+
+    print("request_origin:", request_origin)
+
+    if request_origin is None or request_origin in allowed_origins or any(regex.match(request_path) for regex in public_endpoints_regex):
         response = await call_next(request)
         return response
 
-    # If origin is not allowed, return a 403 error
     return JSONResponse(
         status_code=status.HTTP_403_FORBIDDEN,
         content={"detail": "Forbidden: Origin not allowed"},
