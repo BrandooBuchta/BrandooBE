@@ -85,14 +85,7 @@ app.add_middleware(
 async def check_origin_middleware(request: Request, call_next):
     request_origin = request.headers.get("origin")
     request_path = str(request.url.path)
-
-    print("request_origin:", request_origin)
-    print("request_path:", request_path)
-    print("request_origin is None:", request_origin is None)
-    print("request_origin in allowed_origins:", request_origin in allowed_origins)
-    print("any(regex.match(request_path) for regex in public_endpoints_regex"), any(regex.match(request_path) for regex in public_endpoints_regex)
-
-
+    
     if request_origin is None or request_origin in allowed_origins or any(regex.match(request_path) for regex in public_endpoints_regex):
         response = await call_next(request)
         return response

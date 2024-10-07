@@ -319,85 +319,80 @@ def get_form_table(
 
 @router.get("/users-forms-table/{user_id}")
 def get_users_forms_table(
-    user_id: UUID, 
-    request: Request, 
+    user_id: UUID,
+    request: Request,
     db: Session = Depends(get_db),
-    page: int = Query(1, ge=1, description="Page number to retrieve"),
-    per_page: int = Query(10, ge=1, le=100, description="Number of items per page"),
-    search_query: Optional[str] = Query(None, description="Search query to filter responses"),
-    sort_by: Optional[str] = Query("created_at", description="Field to sort by"),
-    sort_order: Optional[str] = Query("desc", description="Sort order: asc or desc")
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100),
+    search_query: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query("created_at"),
+    sort_order: Optional[str] = Query("desc")
 ):
     try:
         private_key = request.headers.get("X-Private-Key")
         if not private_key:
             raise HTTPException(status_code=400, detail="Missing X-Private-Key header")
 
-        # Fetch all forms for the user
-        forms = db.query(Form).filter(Form.user_id == user_id).all()
-
-        if not forms:
+        # Získání ID formulářů uživatele
+        form_ids = [form.id for form in db.query(Form.id).filter(Form.user_id == user_id).all()]
+        if not form_ids:
             raise HTTPException(status_code=404, detail="No forms found for user")
 
-        # List of all responses and common keys
-        all_responses = []
+        # Sestavení základního dotazu s filtrací podle form_ids
+        base_query = db.query(FormResponse).filter(FormResponse.form_id.in_(form_ids))
+
+        # Aplikace řazení
+        sort_column = getattr(FormResponse, sort_by, None)
+        if sort_column is None:
+            raise HTTPException(status_code=400, detail="Invalid sort_by field")
+
+        if sort_order == "asc":
+            base_query = base_query.order_by(sort_column.asc())
+        else:
+            base_query = base_query.order_by(sort_column.desc())
+
+        # Celkový počet odpovědí
+        total_responses = base_query.count()
+
+        # Aplikace stránkování
+        responses = base_query.offset((page - 1) * per_page).limit(per_page).all()
+
+        # Dekryptování odpovědí a sestavení výsledku
+        filtered_responses = []
         common_keys = None
 
-        for form in forms:
-            query = db.query(FormResponse).filter(FormResponse.form_id == form.id)
+        for response in responses:
+            decrypted_response = get_response_by_id(db, response.id, decrypt_private_key_for_fe(private_key))
 
-            if sort_by == "created_at":
-                if sort_order == "asc":
-                    query = query.order_by(FormResponse.created_at.asc())
-                else:
-                    query = query.order_by(FormResponse.created_at.desc())
+            # Aktualizace common_keys
+            if common_keys is None:
+                common_keys = set(decrypted_response.keys())
+            else:
+                common_keys.intersection_update(decrypted_response.keys())
 
-            responses = query.all()
-
-            for response in responses:
-                decrypted_response = get_response_by_id(db, response.id, decrypt_private_key_for_fe(private_key))
-
-                # Filter responses based on search_query
-                if not search_query or any(search_query.lower() in str(value).lower() for value in decrypted_response.values()):
-                    # Finding common keys among all forms' responses
-                    if common_keys is None:
-                        common_keys = set(decrypted_response.keys())
-                    else:
-                        common_keys.intersection_update(decrypted_response.keys())
-
-                    all_responses.append((response, decrypted_response))
-
-        if common_keys is None:
-            common_keys = set()
-
-        # Filter responses to only common keys and build formatted response body
-        filtered_responses = []
-        for response, decrypted_response in all_responses:
             row = {key: decrypted_response.get(key, None) for key in common_keys}
-            row["labels"] = response.labels
-            row["seen"] = response.seen
-            row["created_at"] = response.created_at.isoformat()
-            row["id"] = response.id
+            row.update({
+                "labels": response.labels,
+                "seen": response.seen,
+                "created_at": response.created_at.isoformat(),
+                "id": response.id
+            })
             filtered_responses.append(row)
 
-        # Pagination logic
-        total_responses = len(filtered_responses)
-        paginated_responses = filtered_responses[(page - 1) * per_page: page * per_page]
-
-        # Build table header with the correct labels from the first form properties
+        # Sestavení hlavičky tabulky
         header = []
         for idx, key in enumerate(common_keys):
-            # Find the first property with the matching key
-            form_property = next((prop for prop in forms[0].properties if prop.key == key), None)
+            form_property = db.query(FormProperty).filter(FormProperty.key == key).first()
             if form_property:
                 label = form_property.label
                 property_type = form_property.property_type
             else:
-                label = key  # Fallback to the key if no matching property is found
-            
+                label = key
+                property_type = "text"
+
             header.append({"key": key, "label": label, "position": idx + 1, "property_type": property_type})
 
-        # Add headers for labels, seen, and created_at
+        # Přidání dalších hlaviček
         header += [
             {"key": "labels", "label": "Labels", "position": len(header) + 1, "property_type": "labels"},
             {"key": "createdAt", "label": "Vytvořeno", "position": len(header) + 2, "property_type": "date_time"}
@@ -405,20 +400,20 @@ def get_users_forms_table(
 
         return {
             "table": {
-                "header": header, 
-                "body": paginated_responses
+                "header": header,
+                "body": filtered_responses
             },
             "pagination": {
                 "page": page,
                 "per_page": per_page,
-                "total_pages": (total_responses + per_page - 1) // per_page,
+                "total_pages": (total_responses + per_page - 1) // per_page + 1,
                 "total_items": total_responses
             }
         }
 
     except HTTPException as e:
         raise e
-    except OperationalError as e:
+    except OperationalError:
         raise HTTPException(status_code=500, detail="Database connection failed, please try again later")
 
 @router.get("/get-single-response/{response_id}")
