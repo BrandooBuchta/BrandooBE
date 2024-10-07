@@ -82,19 +82,19 @@ app.add_middleware(
 
 @app.middleware("http")
 async def check_origin_middleware(request: Request, call_next):
-    request_path = str(request.url.path)
     request_origin = request.headers.get("origin")
     
-    if any(regex.match(request_path) for regex in public_endpoints_regex):
-        response = await call_next(request)
-        return response
-
+    # Check if the request_origin is in the allowed origins
     if request_origin not in allowed_origins:
-        return JSONResponse(
-            status_code=status.HTTP_403_FORBIDDEN,
-            content={"detail": "Forbidden: Origin not allowed"},
-        )
-    
+        # If origin is not allowed, check if the request is for a public endpoint
+        request_path = str(request.url.path)
+        if not any(regex.match(request_path) for regex in public_endpoints_regex):
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"detail": "Forbidden: Origin not allowed"},
+            )
+
+    # If origin is allowed or the endpoint is public, proceed
     response = await call_next(request)
     return response
 
