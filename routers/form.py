@@ -148,13 +148,10 @@ async def create_form_response(
     request_origin = request.headers.get("origin")
 
     if request_origin and "localhost" in request_origin:
-        if not token or not verify_token(db, user.id, token):
+        if not verify_token(db, user.id, token):
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
-    
-    elif request_origin not in [
-        "http://localhost", "http://localhost:3000", "http://localhost:3001", 
-        "https://www.brandoo.cz", "https://app.brandoo.cz", "https://api.brandoo.cz"
-    ]:
+            
+    elif request_origin not in origins or request_origin != f"https://{user.web_url}":
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
 
     try:
@@ -183,14 +180,14 @@ async def get_form_property_options(
     form = get_form(db, prop.form_id)
 
     request_origin = request.headers.get("origin")
-    
+
     if request_origin and "localhost" in request_origin:
         if not verify_token(db, user.id, token):
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
 
-    elif request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
+    elif request_origin not in origins or request_origin != f"https://{user.web_url}":
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
-        
+
     return PublicOptions(
         options=prop.options,
         property_name=prop.label,

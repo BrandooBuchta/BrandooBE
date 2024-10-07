@@ -114,17 +114,14 @@ def add_statistic_value(
         raise HTTPException(status_code=404, detail="User not found")
     
     request_origin = request.headers.get("origin")
-    
-    # Check if the request comes from localhost and verify token if true
+
     if request_origin and "localhost" in request_origin:
         if not verify_token(db, user.id, token):
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
 
-    # Check if the request comes from a valid origin by checking web_url
-    elif request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
+    elif request_origin not in origins or request_origin != f"https://{user.web_url}":
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
 
-    # Handle the different types of statistic values
     if statistic_type == "number" and value.number is not None:
         new_value = create_statistic_value(db, statistic_id, value)
     elif statistic_type == "boolean" and value.boolean is not None:

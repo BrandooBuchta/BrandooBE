@@ -247,8 +247,7 @@ def get_root_content_endpoint(content_id: UUID, request: Request, token: Optiona
     if request_origin and "localhost" in request_origin:
         if not verify_token(db, user.id, token):
             raise HTTPException(status_code=401, detail="Unauthorized for localhost")
-
-    elif request_origin != f"https://{user.web_url}" and request_origin != f"http://{user.web_url}":
+    elif request_origin not in origins or request_origin != f"https://{user.web_url}":
         raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
 
     if not content:
