@@ -53,7 +53,7 @@ app = FastAPI(
 )
 
 # Origins for private endpoints
-origins = [
+allowed_origins = [
     "http://localhost",
     "http://localhost:3000",
     "http://localhost:3001",
@@ -84,16 +84,17 @@ app.add_middleware(
 async def check_origin_middleware(request: Request, call_next):
     request_origin = request.headers.get("origin")
     
-    if request_origin not in origins:
+    if request_origin in allowed_origins:
+        response = await call_next(request)
+        return response
+    
+    request_path = str(request.url.path)
+    if not any(regex.match(request_path) for regex in public_endpoints_regex):
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"detail": "Forbidden: Origin not allowed"},
+        )
 
-        request_path = str(request.url.path)
-        if not any(regex.match(request_path) for regex in public_endpoints_regex):
-            return JSONResponse(
-                status_code=status.HTTP_403_FORBIDDEN,
-                content={"detail": "Forbidden: Origin not allowed"},
-            )
-
-    # If origin is allowed or the endpoint is public, proceed
     response = await call_next(request)
     return response
 
