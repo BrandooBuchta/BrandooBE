@@ -1,16 +1,18 @@
 {
-    "version": 2,
-    "builds": [
-      {
-        "src": "main.py",
-        "use": "@vercel/python"
+  "version": 2,
+  "builds": [
+    {
+      "src": "main.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/main.py",
+      "headers": {
+        "Cache-Control": "no-cache"
       }
-    ],
-    "routes": [
-      {
-        "src": "/(.*)",
-        "dest": "/main.py"
-      }
-    ]
-  }
-  
+    }
+  ]
+}
