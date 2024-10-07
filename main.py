@@ -87,6 +87,7 @@ async def check_origin_middleware(request: Request, call_next):
     request_path = str(request.url.path)
 
     print("request_origin:", request_origin)
+    print("request_path:", request_path)
 
     if request_origin is None or request_origin in allowed_origins or any(regex.match(request_path) for regex in public_endpoints_regex):
         response = await call_next(request)
