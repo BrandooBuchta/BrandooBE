@@ -339,80 +339,45 @@ async def get_users_forms_table(
         if not forms:
             raise HTTPException(status_code=404, detail="No forms found for user")
 
-        # List of all responses and common keys
+        # Base query for responses
         all_responses = []
-        common_keys = None
-
         for form in forms:
             query = db.query(FormResponse).filter(FormResponse.form_id == form.id)
 
+            # Apply sorting directly in the database query
             if sort_by == "created_at":
-                if sort_order == "asc":
-                    query = query.order_by(FormResponse.created_at.asc())
-                else:
-                    query = query.order_by(FormResponse.created_at.desc())
+                query = query.order_by(FormResponse.created_at.asc() if sort_order == "asc" else FormResponse.created_at.desc())
 
-            responses = query.all()
+            # Apply pagination at the query level
+            responses = query.offset((page - 1) * per_page).limit(per_page).all()
 
             for response in responses:
                 decrypted_response = get_response_by_id(db, response.id, decrypt_private_key_for_fe(private_key))
 
-                # Filter responses based on search_query
+                # Filter based on search_query
                 if not search_query or any(search_query.lower() in str(value).lower() for value in decrypted_response.values()):
-                    # Finding common keys among all forms' responses
-                    if common_keys is None:
-                        common_keys = set(decrypted_response.keys())
-                    else:
-                        common_keys.intersection_update(decrypted_response.keys())
+                    all_responses.append({
+                        "id": response.id,
+                        "labels": response.labels,
+                        "seen": response.seen,
+                        "created_at": response.created_at.isoformat(),
+                        "decrypted_response": decrypted_response
+                    })
 
-                    all_responses.append((response, decrypted_response))
-
-        if common_keys is None:
-            common_keys = set()
-
-        # Filter responses to only common keys and build formatted response body
-        filtered_responses = []
-        for response, decrypted_response in all_responses:
-            row = {key: decrypted_response.get(key, None) for key in common_keys}
-            row["labels"] = response.labels
-            row["seen"] = response.seen
-            row["created_at"] = response.created_at.isoformat()
-            row["id"] = response.id
-            filtered_responses.append(row)
-
-        # Pagination logic
-        total_responses = len(filtered_responses)
-        paginated_responses = filtered_responses[(page - 1) * per_page: page * per_page]
-
-        # Build table header with the correct labels from the first form properties
-        header = []
-        for idx, key in enumerate(common_keys):
-            # Find the first property with the matching key
-            form_property = next((prop for prop in forms[0].properties if prop.key == key), None)
-            if form_property:
-                label = form_property.label
-                property_type = form_property.property_type
-            else:
-                label = key  # Fallback to the key if no matching property is found
-            
-            header.append({"key": key, "label": label, "position": idx + 1, "property_type": property_type})
-
-        # Add headers for labels, seen, and created_at
-        header += [
-            {"key": "labels", "label": "Labels", "position": len(header) + 1, "property_type": "labels"},
-            {"key": "createdAt", "label": "Vytvořeno", "position": len(header) + 2, "property_type": "date_time"}
-        ]
+        # Build headers and pagination response
+        header = build_table_headers(forms[0])
+        paginated_responses = all_responses[:per_page]  # Return only the number of items for the page
 
         return {
             "table": {
-                "header": header, 
+                "header": header,
                 "body": paginated_responses
             },
             "pagination": {
                 "page": page,
                 "per_page": per_page,
-                "total_pages": (total_responses + per_page - 1) // per_page,
-                "total_items": total_responses
+                "total_pages": (len(all_responses) + per_page - 1) // per_page,
+                "total_items": len(all_responses)
             }
         }
 
