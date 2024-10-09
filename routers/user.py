@@ -82,6 +82,21 @@ def start_verification(user_id: UUID, db: Session = Depends(get_db)):
     send_verification_email(db_user.email, verification_code.code)
     return {"detail": "Verification email sent"}
 
+@router.post("/finish-verification/{user_id}")
+def finish_verification(user_id: UUID, code: str = Query(None), db: Session = Depends(get_db)):
+    db_user = get_user(db, user_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    is_verified = verify_code(db, user_id, code)
+    
+    if is_verified:
+        db_user.is_verified = True
+        db.commit()
+        db.refresh(db_user)
+    
+    return {"is_verified": is_verified}
+
 @router.post("/verify-code/new")
 def verify_new_user_code(code: str = Query(None), db: Session = Depends(get_db)):
     is_code_valid = verify_code_without_user_id(db, code)
