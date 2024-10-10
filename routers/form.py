@@ -17,6 +17,7 @@ from typing import List, Optional
 from models.form import FormResponse, FormValue
 from fastapi import Query
 from datetime import datetime
+from sqlalchemy.orm import selectinload
 import base64
 import logging
 
@@ -158,8 +159,8 @@ async def create_form_response(
         data = await request.json()
         create_response(db, form_id, data)
 
-        if str(form_id) == "2aa1a8f2-a82d-4d8f-94b4-dd97abce4981":
-            send_free_subscription_on_month_email(data['email'], create_code_for_new_user(db, "1"))
+        # if str(form_id) == "2aa1a8f2-a82d-4d8f-94b4-dd97abce4981":
+        #     send_free_subscription_on_month_email(data['email'], create_code_for_new_user(db, "1"))
 
         if str(form_id) == "5893c160-908e-4f3e-ab51-5a574aa5da70":
             send_form_for_our_services(data['email'])
@@ -243,55 +244,42 @@ async def get_form_table(
         if not private_key:
             raise HTTPException(status_code=400, detail="Missing X-Private-Key header")
 
-        # Get the form and ensure it exists
         form = get_form(db, form_id)
         if not form:
             raise HTTPException(status_code=404, detail="Form not found")
 
-        # Base query for responses
         query = db.query(FormResponse).filter(FormResponse.form_id == form_id)
 
-        # Apply sorting based on the `created_at` field
+        if search_query:
+            query = query.filter(
+                FormResponse.some_field.ilike(f"%{search_query}%")
+            )
+
         if sort_by == "created_at":
-            if sort_order == "asc":
-                query = query.order_by(FormResponse.created_at.asc())
-            else:
-                query = query.order_by(FormResponse.created_at.desc())
+            query = query.order_by(FormResponse.created_at.asc() if sort_order == "asc" else FormResponse.created_at.desc())
 
-        # Fetch all responses to filter them in memory
-        responses = query.all()
+        total_responses = query.count()
 
-        # Decrypt and filter responses in memory
-        filtered_responses = []
+        responses = query.offset((page - 1) * per_page).limit(per_page).all()
+
+        decrypted_responses = []
         for response in responses:
             decrypted_response = get_response_by_id(db, response.id, decrypt_private_key_for_fe(private_key))
+            decrypted_responses.append((response, decrypted_response))
 
-            # Check if search_query exists in any decrypted field
-            if not search_query or any(search_query.lower() in str(value).lower() for value in decrypted_response.values()):
-                filtered_responses.append((response, decrypted_response))
-
-        # Count total items after filtering
-        total_responses = len(filtered_responses)
-
-        # Apply pagination to the filtered responses
-        paginated_responses = filtered_responses[(page - 1) * per_page: page * per_page]
-
-        # Build the table header including additional fields
         header = [
             {"key": prop.key, "label": prop.label, "position": prop.position, "property_type": prop.property_type}
             for prop in sorted(form.properties, key=lambda x: x.position)
         ]
-        # Add headers for labels, seen, and created_at
+
         header += [
             {"key": "labels", "label": "Labels", "position": len(header) + 1, "property_type": "labels"},
-            {"key": "created_at", "label": "Vytvořeno", "position": len(header) + 3, "property_type": "date_time"}
+            {"key": "createdAt", "label": "Vytvořeno", "position": len(header) + 3, "property_type": "date_time"}
         ]
 
-        # Build the table body
         body = []
-        for response, decrypted_response in paginated_responses:
+        for response, decrypted_response in decrypted_responses:
             row = {header_item["key"]: decrypted_response.get(header_item["key"], None) for header_item in header}
-            # Add values for labels, seen, and created_at
             row["labels"] = response.labels
             row["seen"] = response.seen
             row["created_at"] = response.created_at.isoformat()
@@ -333,51 +321,68 @@ async def get_users_forms_table(
         if not private_key:
             raise HTTPException(status_code=400, detail="Missing X-Private-Key header")
 
-        # Fetch all forms for the user
-        forms = db.query(Form).filter(Form.user_id == user_id).all()
+        forms = db.query(Form).filter(Form.user_id == user_id).options(selectinload(Form.properties)).all()
 
         if not forms:
             raise HTTPException(status_code=404, detail="No forms found for user")
 
-        # Base query for responses
-        all_responses = []
-        for form in forms:
-            query = db.query(FormResponse).filter(FormResponse.form_id == form.id)
+        responses_query = db.query(FormResponse).filter(FormResponse.form_id.in_([f.id for f in forms]))
 
-            # Apply sorting directly in the database query
-            if sort_by == "created_at":
-                query = query.order_by(FormResponse.created_at.asc() if sort_order == "asc" else FormResponse.created_at.desc())
+        if sort_by == "created_at":
+            responses_query = responses_query.order_by(
+                FormResponse.created_at.asc() if sort_order == "asc" else FormResponse.created_at.desc()
+            )
 
-            # Apply pagination at the query level
-            responses = query.offset((page - 1) * per_page).limit(per_page).all()
+        responses = responses_query.offset((page - 1) * per_page).limit(per_page).all()
 
-            for response in responses:
-                decrypted_response = get_response_by_id(db, response.id, decrypt_private_key_for_fe(private_key))
+        decrypted_responses = []
+        for response in responses:
+            decrypted_data = get_response_by_id(db, response.id, decrypt_private_key_for_fe(private_key))
+            decrypted_responses.append((response, decrypted_data))
 
-                # Filter based on search_query
-                if not search_query or any(search_query.lower() in str(value).lower() for value in decrypted_response.values()):
-                    all_responses.append({
-                        "id": response.id,
-                        "labels": response.labels,
-                        "seen": response.seen,
-                        "created_at": response.created_at.isoformat(),
-                        "decrypted_response": decrypted_response
-                    })
+        filtered_responses = []
+        for response, decrypted_response in decrypted_responses:
+            if not search_query or any(search_query.lower() in str(value).lower() for value in decrypted_response.values()):
+                filtered_responses.append((response, decrypted_response))
 
-        # Build headers and pagination response
-        header = build_table_headers(forms[0])
-        paginated_responses = all_responses[:per_page]  # Return only the number of items for the page
+        common_keys = set(decrypted_responses[0][1].keys()) if decrypted_responses else set()
+        for _, decrypted_response in decrypted_responses:
+            common_keys.intersection_update(decrypted_response.keys())
+
+        header = []
+        for idx, key in enumerate(common_keys):
+            form_property = next((prop for prop in forms[0].properties if prop.key == key), None)
+            label = form_property.label if form_property else key  # Fallback to key if no matching property
+            property_type = form_property.property_type if form_property else 'unknown'
+            header.append({"key": key, "label": label, "position": idx + 1, "property_type": property_type})
+
+        header += [
+            {"key": "labels", "label": "Labels", "position": len(header) + 1, "property_type": "labels"},
+            {"key": "createdAt", "label": "Vytvořeno", "position": len(header) + 2, "property_type": "date_time"}
+        ]
+
+        body = []
+        for response, decrypted_response in filtered_responses:
+            row = {key: decrypted_response.get(key, None) for key in common_keys}
+            row["labels"] = response.labels
+            row["seen"] = response.seen
+            row["created_at"] = response.created_at.isoformat()
+            row["id"] = response.id
+            body.append(row)
+
+        total_responses = len(filtered_responses)
+        total_pages = (total_responses + per_page - 1) // per_page
 
         return {
             "table": {
-                "header": header,
-                "body": paginated_responses
+                "header": header, 
+                "body": body
             },
             "pagination": {
                 "page": page,
                 "per_page": per_page,
-                "total_pages": (len(all_responses) + per_page - 1) // per_page,
-                "total_items": len(all_responses)
+                "total_pages": total_pages,
+                "total_items": total_responses
             }
         }
 
