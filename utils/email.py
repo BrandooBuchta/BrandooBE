@@ -68,7 +68,7 @@ def send_free_subscription_on_three_month_email(email: str, code: str):
     )
     send_email(subject, email, body)
 
-def send_thank_you(email: str, code: str):
+def send_thank_you(email: str):
     subject = "Brandoo Enterprises - Překvapení!"
     body = getEmailHtml(
         'Máme pro vás překvapení, napojíme vaší webovou stránku na Brandoo za 1 Kč!', 
