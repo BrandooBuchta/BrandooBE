@@ -1,3 +1,5 @@
+# models/statistics.py
+
 from sqlalchemy import Column, String, DateTime, Integer, Boolean, ForeignKey, Time
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship

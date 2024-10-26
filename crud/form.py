@@ -313,3 +313,13 @@ def update_form_response_message(db: Session, message_id: UUID, update_data: For
 def count_unseen_responses_by_user_id(db: Session, user_id: UUID):
     return db.query(FormResponse).join(Form).filter(Form.user_id == user_id, FormResponse.seen == False).count()
 
+def delete_all_responses_from_form(db: Session, form_id: UUID):
+    form = db.query(Form).filter(Form.id == form_id).first()
+
+    if not form:
+        return None
+
+    db.query(FormResponse).filter(FormResponse.form_id == form_id).delete()
+    db.commit()
+
+    return form
