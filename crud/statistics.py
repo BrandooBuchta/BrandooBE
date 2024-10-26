@@ -1,4 +1,7 @@
+# crud/statistics.py
+
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from models.statistics import Statistic, StatisticValue
 from schemas.statistics import StatisticCreate, StatisticUpdate, StatisticValueCreate
 from uuid import UUID
@@ -62,7 +65,7 @@ def delete_statistic_value(db: Session, statistic_id: UUID):
         db.delete(db_value)
         db.commit()
         return True
-    return False
+    return False    
 
 def get_statistic_type(db: Session, statistic_id: UUID):
     statistic = db.query(Statistic).filter(Statistic.id == statistic_id).first()
@@ -79,3 +82,28 @@ def delete_statistic_value(db: Session, statistic_id: UUID):
 def reset_statistic(db: Session, statistic_id: UUID):
     db.query(StatisticValue).filter(StatisticValue.statistic_id == statistic_id).delete()
     db.commit()
+
+def get_aggregated_statistic_value(db: Session, statistic_id: UUID):
+    statistic = db.query(Statistic).filter(Statistic.id == statistic_id).first()
+    if not statistic:
+        return None
+
+    statistic_type = statistic.type
+
+    if statistic_type == "number":
+        result = db.query(func.sum(StatisticValue.number)).filter(StatisticValue.statistic_id == statistic_id).scalar()
+        return {"value": result}
+
+    elif statistic_type == "time":
+        result = db.query(func.avg(func.extract("epoch", StatisticValue.time))).filter(StatisticValue.statistic_id == statistic_id).scalar()
+        average_time = None
+        if result is not None:
+            average_time = timedelta(seconds=result)
+        return {"value": str(average_time)}
+
+    elif statistic_type == "boolean":
+        true_count = db.query(func.count()).filter(StatisticValue.statistic_id == statistic_id, StatisticValue.boolean == True).scalar()
+        false_count = db.query(func.count()).filter(StatisticValue.statistic_id == statistic_id, StatisticValue.boolean == False).scalar()
+        return {"value": { "true": true_count, "false": false_count } }
+
+    return None

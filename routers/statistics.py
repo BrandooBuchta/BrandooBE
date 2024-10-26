@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Depends
 from sqlalchemy.orm import Session, joinedload
 from database import SessionLocal
 from schemas.statistics import StatisticCreate, StatisticUpdate, StatisticValueCreate, Statistic as StatisticSchema, StatisticValue as StatisticValueSchema
-from crud.statistics import create_statistic, get_statistic, get_user_statistics, update_statistic, delete_statistic, create_statistic_value, delete_statistic_value, get_statistic_type, reset_statistic
+from crud.statistics import create_statistic, get_statistic, get_user_statistics, update_statistic, delete_statistic, create_statistic_value, delete_statistic_value, get_statistic_type, reset_statistic, get_aggregated_statistic_value
 from utils.security import verify_token
 from uuid import UUID
 from fastapi.security import OAuth2PasswordBearer
@@ -136,6 +136,35 @@ def add_statistic_value(
         raise HTTPException(status_code=400, detail="Invalid value for statistic type")
 
     return new_value
+
+@router.get("/value/{statistic_id}")
+def get_statistic_value(
+    statistic_id: UUID, 
+    request: Request, 
+    token: Optional[str] = Depends(get_optional_token),
+    db: Session = Depends(get_db)
+):
+    statistic = get_statistic(db, statistic_id)
+    if not statistic:
+        raise HTTPException(status_code=404, detail="Statistic not found")
+
+    user = get_user(db, statistic.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    request_origin = request.headers.get("origin")
+
+    if request_origin and "localhost" in request_origin:
+        if not verify_token(db, user.id, token):
+            raise HTTPException(status_code=401, detail="Unauthorized for localhost")
+
+    elif request_origin not in origins and request_origin != f"https://{user.web_url}":
+        raise HTTPException(status_code=403, detail="Forbidden: Origin not allowed")
+
+    result = get_aggregated_statistic_value(db, statistic_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Statistic not found or invalid type.")
+    return result
 
 @router.post("/delete-statistic-value/{statistic_id}")
 def remove_statistic_value(statistic_id: UUID, db: Session = Depends(get_db)):

@@ -9,7 +9,7 @@ from utils.security import verify_token, rsa_decrypt_data, decrypt_private_key_f
 from utils.email import send_free_subscription_on_month_email, send_form_for_our_services, send_thank_you
 from fastapi.security import OAuth2PasswordBearer
 from schemas.form import CreateForm, FormModel, FormModelPublic, UpdateForm, FormWithoutProperties, FormResponseMessagePublic, FormResponseMessageCreate, FormResponseMessageUpdate, UpdateContactLabels, FormPropertyManageModel, TermsAndConditions, PublicOptions
-from crud.form import create_form, get_form, update_form, delete_form, get_users_form_menu, create_response, get_response_by_id, get_plain_response, update_response, create_form_response_message, get_messages_by_response_id, update_form_response_message, count_unseen_responses_by_user_id, delete_response, get_property
+from crud.form import create_form, get_form, update_form, delete_form, get_users_form_menu, create_response, get_response_by_id, get_plain_response, update_response, create_form_response_message, get_messages_by_response_id, update_form_response_message, count_unseen_responses_by_user_id, delete_response, get_property, delete_all_responses_from_form
 from crud.user import get_user, create_code_for_new_user
 from models.form import Form
 from uuid import UUID
@@ -543,3 +543,16 @@ def count_unseen_responses_user(form_id: UUID, db: Session = Depends(get_db)):
         form_properties=props
     )
 
+@router.delete("/reset-form/{form_id}")
+def get_form_by_id(form_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    form = get_form(db, form_id)
+
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+
+    if not verify_token(db, form.user_id, token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    delete_all_responses_from_form(db, form_id)
+
+    return { "detail": "Successfully reseted form!" }
