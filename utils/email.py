@@ -157,7 +157,7 @@ def send_extra_tip_video_email(email: str):
         <body style="background-color: #ffffff; color: #000000;">
             <p>Zdravíme,</p>
             <p>
-                jak jsme slíbili, máme pro vás ještě jeden extra tip, který zvýší účinnost vašich textů a podpoří váš byznys.
+                jak jsme slíbili, máme pro vás ještě překvapení, extra tip navíc který zvýší účinnost vašich textů a podpoří váš byznys.
             </p>
             <p><strong>Extra tip:</strong> Natočte video a spojte své texty se svou tváří.<br/>
                 Video je jedním z nejúčinnějších způsobů, jak zaujmout publikum. Převedení textu na video zvyšuje proklikovost a konverzi, protože:
