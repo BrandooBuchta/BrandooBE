@@ -171,7 +171,7 @@ def delete_expired_code(db: Session):
     
     db_codes = db.query(Code).filter(
         Code.created_at < five_minutes,
-        Code.code_type == "create-user",
+        Code.type == "create-user",
     ).all()
     
     for code in db_codes:
