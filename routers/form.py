@@ -557,3 +557,4 @@ def get_form_by_id(form_id: UUID, token: str = Depends(oauth2_scheme), db: Sessi
     delete_all_responses_from_form(db, form_id)
 
     return { "detail": "Successfully reseted form!" }
+    
