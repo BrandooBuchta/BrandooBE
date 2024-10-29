@@ -6,7 +6,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy import desc
 from database import SessionLocal
 from utils.security import verify_token, rsa_decrypt_data, decrypt_private_key_for_fe
-from utils.email import send_free_subscription_on_month_email, send_form_for_our_services, send_thank_you
+from utils.email import send_free_subscription_on_month_email, send_form_for_our_services, send_thank_you, send_business_improvement_tip_email, send_extra_tip_video_email
 from fastapi.security import OAuth2PasswordBearer
 from schemas.form import CreateForm, FormModel, FormModelPublic, UpdateForm, FormWithoutProperties, FormResponseMessagePublic, FormResponseMessageCreate, FormResponseMessageUpdate, UpdateContactLabels, FormPropertyManageModel, TermsAndConditions, PublicOptions
 from crud.form import create_form, get_form, update_form, delete_form, get_users_form_menu, create_response, get_response_by_id, get_plain_response, update_response, create_form_response_message, get_messages_by_response_id, update_form_response_message, count_unseen_responses_by_user_id, delete_response, get_property, delete_all_responses_from_form
@@ -160,7 +160,8 @@ async def create_form_response(
         create_response(db, form_id, data)
 
         if str(form_id) == "2aa1a8f2-a82d-4d8f-94b4-dd97abce4981":
-            send_thank_you(data['email'])
+            send_business_improvement_tip_email(data['email'])
+            send_extra_tip_video_email(data['email'])
 
         if str(form_id) == "5893c160-908e-4f3e-ab51-5a574aa5da70":
             send_form_for_our_services(data['email'])

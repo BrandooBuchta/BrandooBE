@@ -77,11 +77,30 @@ def send_thank_you(email: str):
     send_email(subject, email, body)
 
 def send_form_for_our_services(email: str):
-    subject = "Brandoo Enterprises - Děkujeme že v nás vkládáte důvěru!"
-    body = getEmailHtml(
-        'Tady je odkaz na formulář, pomocí kterého lépe určíme co potřebujete a co vám my můžeme nabídnout abychom maximalizovali vaše výdělky.', 
-        '<a href="https://www.brandoo.cz/form/b4766a43-bbe5-4ba2-86f3-13cc6e28d96c" target="_blank" style="color: white; font-weight: bold;">Klikni zde pro přesměrování na formulář!</a>',
-    )
+    subject = "Jeden dotazník vás dělí od úspěchu!"
+    body = """
+    <html>
+        <body style="background-color: #ffffff; color: #000000;">
+            <p>Zdravíme,</p>
+            <p>
+                děkujeme, že nám dáváte důvěru a rozhodli jste se zlepšit své podnikání s námi. 
+                Připravili jsme pro vás formulář, pomocí kterého lépe zjistíme, co přesně potřebujete, 
+                a co vám můžeme nabídnout, abychom maximalizovali vaše výdělky.
+            </p>
+            <p>
+                Klikněte na následující odkaz, který vás přesměruje na formulář:
+            </p>
+            <p>
+                <a href="https://www.brandoo.cz/form/924d28fc-f5ba-4e0c-8338-655cdf7ab794" target="_blank" 
+                style="color: #0000ee; font-weight: bold;">Klikni zde pro přesměrování na formulář!</a>
+            </p>
+            <p>
+                Děkujeme za váš zájem, těšíme se na spolupráci a na to, jak vám pomůžeme dosáhnout vašich cílů.
+            </p>
+            <p>S pozdravem, <br/>Tým Brandoo</p>
+        </body>
+    </html>
+    """
     send_email(subject, email, body)
 
 def send_reset_email(email: str, code: str):
@@ -99,4 +118,65 @@ def send_delete_user_email(email: str):
         'Smazání Vašeho Účtu', 
         'Váš účet byl smazán z důvodu neověření vaší identity.',
     )
+    send_email(subject, email, body)
+
+def send_business_improvement_tip_email(email: str):
+    subject = "Tip na zlepšení vašeho podnikání – Jak psát pro vyšší zisky"
+    body = """
+    <html>
+        <body style="background-color: #ffffff; color: #000000;">
+            <p>Zdravíme,</p>
+            <p>
+                děkujeme za váš zájem o náš tip! Hned se na něj vrhneme, protože jde o zásadní prvek, 
+                který může okamžitě pozvednout vaše podnikání na další úroveň.
+            </p>
+            <p><strong>Tip, jak zlepšit vaše podnikání:</strong> Naučte se psát s cílem přenést emoce a přesvědčit.<br/>
+                Váš text může být na webu, v emailu nebo v reklamě. Kvalitní copywriting prodává tím, 
+                že u čtenáře vyvolá pocit, že mu rozumíte a nabízíte mu to, co potřebuje.</p>
+            <p><strong>Jak na to:</strong></p>
+            <ul>
+                <li>Prozkoumejte svého ideálního klienta – Text bude účinnější, když budete mluvit přímo k jeho potřebám a snům.</li>
+                <li>Vložte emoce – Neprodávejte jen produkt, ale to, jak se váš klient bude cítit, když jej získá.</li>
+                <li>Udržujte přímočarost a jasnost – Každé slovo by mělo směřovat k hlavní myšlence.</li>
+            </ul>
+            <p>
+                Pokud se vám nechce nebo nemáte čas, můžeme se o váš obsah postarat my. Ušetříte čas, dostanete kvalitní text na míru, 
+                a můžete se plně věnovat růstu svého podnikání.
+            </p>
+            <p>Děkujeme za váš zájem a těšíme se na to, jak vám pomůžeme zlepšit vaše podnikání!</p>
+            <p>S pozdravem, <br/>Tým Brandoo</p>
+        </body>
+    </html>
+    """
+    send_email(subject, email, body)
+
+def send_extra_tip_video_email(email: str):
+    subject = "Extra tip – Zvyšte účinnost textů pomocí videa"
+    body = """
+    <html>
+        <body style="background-color: #ffffff; color: #000000;">
+            <p>Zdravíme,</p>
+            <p>
+                jak jsme slíbili, máme pro vás ještě jeden extra tip, který zvýší účinnost vašich textů a podpoří váš byznys.
+            </p>
+            <p><strong>Extra tip:</strong> Natočte video a spojte své texty se svou tváří.<br/>
+                Video je jedním z nejúčinnějších způsobů, jak zaujmout publikum. Převedení textu na video zvyšuje proklikovost a konverzi, protože:
+            </p>
+            <ul>
+                <li><strong>Lidé milují vizuální obsah</strong> – Video je jednodušší a rychlejší na vnímání než dlouhý text.</li>
+                <li><strong>Předáváte autentický dojem</strong> – Když vás divák uvidí, vytvoří si k vám vztah a důvěru.</li>
+                <li><strong>Emoce a příběh</strong> – Videa lépe přenášejí emoce, a jak víme, právě emoce prodávají.</li>
+            </ul>
+            <p>
+                Zvažte propojení videa s vašimi texty – ať už jde o příběh vaší značky, představení produktů nebo sdílení úspěchů.
+            </p>
+            <p>
+                Pokud si na to netroufáte, jsme tu, abychom vám pomohli. Můžeme pro vás vytvořit silné texty i videa, 
+                která budou reprezentovat vaši značku a zvýší vaši konverzi.
+            </p>
+            <p>Děkujeme, že jste s námi, a těšíme se na vaše úspěchy!</p>
+            <p>S pozdravem, <br/>Tým Brandoo</p>
+        </body>
+    </html>
+    """
     send_email(subject, email, body)
