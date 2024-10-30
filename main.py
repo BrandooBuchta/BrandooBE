@@ -52,7 +52,6 @@ app = FastAPI(
     title="Brandoo API"
 )
 
-# Origins for private endpoints
 allowed_origins = [
     "http://localhost",
     "http://localhost:3000",
@@ -65,7 +64,6 @@ allowed_origins = [
     "https://dev.app.brandoo.cz",
 ]
 
-# Public endpoints regex patterns
 public_endpoints_regex = [
     re.compile(r"^/api/(forms/(create-response|property/options)|statistics/value|contents)/[a-fA-F0-9-]+$")
 ]
