@@ -1,7 +1,7 @@
 # routers/statistics.py
 
 import random
-from fastapi import APIRouter, Depends, HTTPException, Request, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request, Depends, Query
 from sqlalchemy.orm import Session, joinedload
 from database import SessionLocal
 from schemas.statistics import StatisticCreate, StatisticUpdate, StatisticValueCreate, Statistic as StatisticSchema, StatisticValue as StatisticValueSchema
@@ -64,11 +64,21 @@ def read_statistic(statistic_id: UUID, token: str = Depends(oauth2_scheme), db: 
     return statistic
 
 @router.get("/get-users-statistics/{user_id}", response_model=List[StatisticSchema])
-def read_user_statistics(user_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def read_user_statistics(
+    user_id: UUID, 
+    token: str = Depends(oauth2_scheme), 
+    db: Session = Depends(get_db),
+    searchQuery: Optional[str] = Query(None, alias="searchQuery")
+):
     if not verify_token(db, user_id, token):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    statistics = db.query(Statistic).options(joinedload(Statistic.values)).filter(Statistic.user_id == user_id).all()
+    query = db.query(Statistic).options(joinedload(Statistic.values)).filter(Statistic.user_id == user_id)
+    
+    if searchQuery:
+        query = query.filter(Statistic.name.ilike(f"%{searchQuery}%"))
+    
+    statistics = query.all()
     return statistics
 
 @router.delete("/delete-statistic/{statistic_id}")
