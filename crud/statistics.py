@@ -107,3 +107,11 @@ def get_aggregated_statistic_value(db: Session, statistic_id: UUID):
         return {"value": { "true": true_count, "false": false_count } }
 
     return None
+
+def reset_user_statistics(db: Session, user_id: UUID):
+    user_statistics = db.query(Statistic).filter(Statistic.user_id == user_id).all()
+    
+    for statistic in user_statistics:
+        db.query(StatisticValue).filter(StatisticValue.statistic_id == statistic.id).delete()
+    
+    db.commit()

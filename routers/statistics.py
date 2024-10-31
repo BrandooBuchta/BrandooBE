@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Depends, Query
 from sqlalchemy.orm import Session, joinedload
 from database import SessionLocal
 from schemas.statistics import StatisticCreate, StatisticUpdate, StatisticValueCreate, Statistic as StatisticSchema, StatisticValue as StatisticValueSchema
-from crud.statistics import create_statistic, get_statistic, get_user_statistics, update_statistic, delete_statistic, create_statistic_value, delete_statistic_value, get_statistic_type, reset_statistic, get_aggregated_statistic_value
+from crud.statistics import create_statistic, get_statistic, get_user_statistics, update_statistic, delete_statistic, create_statistic_value, delete_statistic_value, get_statistic_type, reset_statistic, get_aggregated_statistic_value, reset_user_statistics
 from utils.security import verify_token
 from uuid import UUID
 from fastapi.security import OAuth2PasswordBearer
@@ -190,22 +190,32 @@ def read_user_statistics(statistic_id: UUID, token: str = Depends(oauth2_scheme)
     reset_statistic(db, statistic_id)
     return { "detail": "Successfully reseted statistic." }
 
+@router.delete("/reset-user-statistics/{user_id}")
+def reset_user_statistics_endpoint(
+    user_id: UUID, 
+    token: str = Depends(oauth2_scheme), 
+    db: Session = Depends(get_db)
+):
+    if not verify_token(db, user_id, token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    reset_user_statistics(db, user_id)
+    return {"detail": "Successfully reset all statistics for the user."}
+
 @router.get("/random-statistics/{user_id}", response_model=List[StatisticSchema])
 def get_random_statistics(user_id: UUID, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     one_week_ago = datetime.now() - timedelta(weeks=1)
 
-    # Query all statistics with values from the last week for the specific user
     statistics = db.query(Statistic).join(Statistic.values).filter(Statistic.user_id == user_id, StatisticValue.created_at >= one_week_ago).all()
     
     if not statistics:
         return []
 
 
-    # If there are fewer than 3 statistics, return whatever is available
     if len(statistics) == 0:
         raise HTTPException(status_code=404, detail="No statistics found for this week.")
     
-    # Return up to 3 random statistics
     random_statistics = random.sample(statistics, min(len(statistics), 3))
 
     return random_statistics
+
